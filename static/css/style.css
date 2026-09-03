@@ -1,0 +1,339 @@
+/* Professional dark-theme dashboard styling */
+
+:root {
+  --bg-main: #0a0e1a;
+  --bg-card: rgba(16, 24, 43, 0.7);
+  --bg-glass: rgba(16, 24, 43, 0.4);
+  --accent-cyan: #00d4ff;
+  --accent-teal: #00b8d4;
+  --accent-orange: #ff6b35;
+  --accent-red: #ff3366;
+  --accent-green: #00e676;
+  --accent-yellow: #ffd600;
+  --text-main: #ffffff;
+  --text-muted: #a0aab2;
+  --border-color: rgba(0, 212, 255, 0.15);
+  --gradient-primary: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+  --gradient-warning: linear-gradient(135deg, var(--accent-orange), var(--accent-red));
+  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(0, 212, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(255, 107, 53, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6, .navbar-brand {
+  font-family: var(--font-heading);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+/* Navbar */
+.navbar-glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 15px 0;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1.5rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-link {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--accent-cyan) !important;
+}
+
+/* Buttons */
+.btn-gradient {
+  background: var(--gradient-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+  color: #fff;
+}
+
+/* Status Cards Row */
+.status-card {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  height: 100%;
+}
+
+.status-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-right: 15px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.status-icon.cyan { color: var(--accent-cyan); background: rgba(0, 212, 255, 0.1); }
+.status-icon.orange { color: var(--accent-orange); background: rgba(255, 107, 53, 0.1); }
+.status-icon.yellow { color: var(--accent-yellow); background: rgba(255, 214, 0, 0.1); }
+.status-icon.red { color: var(--accent-red); background: rgba(255, 51, 102, 0.1); }
+.status-icon.green { color: var(--accent-green); background: rgba(0, 230, 118, 0.1); }
+
+.status-info h6 {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
+.status-info h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Map Container */
+#cyclone-map {
+  height: 550px;
+  border-radius: 12px;
+  width: 100%;
+  background-color: #050811;
+  z-index: 1;
+}
+
+/* Chart Container */
+.chart-container {
+  position: relative;
+  height: 250px;
+  width: 100%;
+  padding: 10px;
+}
+
+/* Drag and Drop Upload Area */
+.upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: rgba(0, 212, 255, 0.02);
+}
+
+.upload-area:hover, .upload-area.dragover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.upload-icon {
+  font-size: 3rem;
+  color: var(--accent-cyan);
+  margin-bottom: 15px;
+}
+
+#imagePreviewContainer {
+  margin-top: 15px;
+  display: none;
+}
+
+#imagePreview {
+  max-width: 100%;
+  max-height: 250px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Warning Panel */
+.warning-panel {
+  border: 1px solid var(--accent-orange);
+  background: linear-gradient(180deg, rgba(255, 107, 53, 0.1) 0%, rgba(16, 24, 43, 0.7) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.warning-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--gradient-warning);
+}
+
+/* Table Styling */
+.table-dark {
+  background-color: transparent;
+  color: var(--text-main);
+}
+.table-dark th {
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+.table-dark td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+.table-dark tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Disclaimer & Banners */
+.disclaimer-banner {
+  background: rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.demo-banner {
+  background: rgba(255, 214, 0, 0.15);
+  border-left: 4px solid var(--accent-yellow);
+  color: var(--accent-yellow);
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* Progress Bars */
+.progress {
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.progress-bar {
+  background: var(--gradient-primary);
+  border-radius: 4px;
+}
+
+/* Animations */
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(255, 51, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 51, 102, 0); }
+}
+
+.pulse-high {
+  animation: pulse-red 2s infinite;
+  border-radius: 50%;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Form Controls */
+.form-select, .form-control {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  color: #fff;
+}
+.form-select:focus, .form-control:focus {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 0.25rem rgba(0, 212, 255, 0.25);
+  color: #fff;
+}
+.form-select option {
+  background-color: var(--bg-main);
+  color: #fff;
+}
+
+/* Toast */
+.toast-container {
+  z-index: 1060;
+}
+.toast {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  color: white;
+}
+.toast-header {
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom Risk Badges */
+.badge-risk-low { background-color: rgba(0, 230, 118, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+.badge-risk-moderate { background-color: rgba(255, 214, 0, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+.badge-risk-high { background-color: rgba(255, 107, 53, 0.2); color: var(--accent-orange); border: 1px solid var(--accent-orange); }
+.badge-risk-extreme { background-color: rgba(255, 51, 102, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+/* Loaders */
+.spinner-border {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-width: 0.2em;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+  .status-card { margin-bottom: 15px; }
+  #cyclone-map { height: 400px; }
+}

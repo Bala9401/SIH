@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cyclone EWS | About</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-glass sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fa-solid fa-hurricane me-2 text-info"></i>AI Cyclone EWS
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/about">About</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <h1 class="mb-5 text-center">About the Project</h1>
+        
+        <div class="row g-4">
+            <div class="col-md-8 offset-md-2">
+                <div class="glass-card p-5 mb-4">
+                    <h3 class="mb-4 text-info">Methodology</h3>
+                    <p>The AI-Based Cyclone Early Warning System combines advanced deep learning techniques to provide comprehensive cyclone analysis:</p>
+                    <ul>
+                        <li><strong>Image Classification (CNN):</strong> Convolutional Neural Networks analyze satellite imagery (e.g., INSAT-3D IR) to classify current cyclone intensity.</li>
+                        <li><strong>Track Prediction (LSTM):</strong> Long Short-Term Memory networks process sequential historical data (latitude, longitude, wind speed, pressure) to forecast the future trajectory.</li>
+                        <li><strong>Risk Assessment Logic:</strong> Rule-based systems evaluate predicted parameters to generate actionable early warnings.</li>
+                    </ul>
+                </div>
+                
+                <div class="glass-card p-5 mb-4">
+                    <h3 class="mb-4 text-info">Technology Stack</h3>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <i class="fa-brands fa-python fs-1 text-muted mb-2"></i>
+                            <h5>Backend</h5>
+                            <p class="small text-muted">Python, Flask, TensorFlow/Keras, Pandas, NumPy</p>
+                        </div>
+                        <div class="col-4">
+                            <i class="fa-brands fa-js fs-1 text-muted mb-2"></i>
+                            <h5>Frontend</h5>
+                            <p class="small text-muted">HTML5, CSS3 (Bootstrap 5), JavaScript (ES6), Leaflet.js, Chart.js</p>
+                        </div>
+                        <div class="col-4">
+                            <i class="fa-solid fa-database fs-1 text-muted mb-2"></i>
+                            <h5>Data</h5>
+                            <p class="small text-muted">IMD Cyclone Data, MOSDAC Satellite Imagery</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-5">
+                    <h3 class="mb-4 text-warning">Limitations & Disclaimer</h3>
+                    <p class="text-muted">This system is a prototype developed for the Smart India Hackathon (SIH). It is <strong>NOT</strong> an operational meteorological tool. Predictions made by this system are for demonstration purposes only. For actual weather warnings and cyclone information, always refer to the official reports from the India Meteorological Department (IMD) or local authorities.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local uploads and generated training caches
+uploads/*
+data/processed/
+data/processed_satellite/
+data/satellite/**/*.jpg
+data/satellite/**/*.jpeg
+data/satellite/**/*.png
+data/satellite/**/*.tif
+data/satellite/**/*.tiff
+data/satellite/**/*.webp
+data/ibtracs/*.csv
+
+# Generated reports and plots can be recreated by the training scripts.
+results/plots/
+results/metrics/
+results/predictions/
