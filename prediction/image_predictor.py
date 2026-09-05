@@ -5,6 +5,7 @@ import numpy as np
 try:
     from tensorflow.keras.models import load_model
     from tensorflow.keras.preprocessing.image import load_img, img_to_array
+    from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 except ImportError:
     pass
 
@@ -15,6 +16,8 @@ class CycloneImagePredictor:
         self.demo_mode = True
         self.model = None
         self.class_names = getattr(config, 'CLASS_NAMES', ['Cyclone', 'No Cyclone'])
+        self.task = "unknown"
+        self.intensity_classification_available = False
         self.image_size = getattr(config, 'IMAGE_SIZE', 224)
 
         try:
@@ -30,6 +33,8 @@ class CycloneImagePredictor:
                     metadata = json.load(f)
                     if "class_names" in metadata:
                         self.class_names = metadata["class_names"]
+                    self.task = metadata.get("task", "unknown")
+                    self.intensity_classification_available = bool(metadata.get("intensity_labels_available", False))
         except Exception as e:
             print(f"Failed to load image predictor model: {e}")
             self.demo_mode = True
@@ -38,7 +43,7 @@ class CycloneImagePredictor:
         try:
             img = load_img(image_path, target_size=(self.image_size, self.image_size))
             img_array = img_to_array(img)
-            img_array = img_array / 255.0
+            img_array = preprocess_input(img_array.astype(np.float32))
             img_array = np.expand_dims(img_array, axis=0)
             return img_array
         except Exception as e:
@@ -76,6 +81,8 @@ class CycloneImagePredictor:
                 "class_name": class_name,
                 "class_index": predicted_class_index,
                 "all_probabilities": [float(p) for p in predictions],
+                "task": self.task,
+                "intensity_classification_available": self.intensity_classification_available,
                 "demo_mode": False
             }
         except Exception as e:

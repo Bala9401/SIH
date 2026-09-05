@@ -58,22 +58,22 @@ def predict_image():
     try:
         upload = request.files.get('file') or request.files.get('image')
         if upload is None:
-            return jsonify({'error': 'No file part'}), 400
+            return jsonify({'success': False, 'error': 'No file part'}), 400
         
         file = upload
         if file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
+            return jsonify({'success': False, 'error': 'No selected file'}), 400
 
         filename = secure_filename(file.filename)
         if os.path.splitext(filename)[1].lower() not in ALLOWED_IMAGE_EXTENSIONS:
-            return jsonify({'error': 'Unsupported image format'}), 415
+            return jsonify({'success': False, 'error': 'Unsupported image format'}), 415
 
         try:
             image = Image.open(file)
             image.verify()
             file.seek(0)
         except Exception:
-            return jsonify({'error': 'Uploaded file is not a readable image'}), 400
+            return jsonify({'success': False, 'error': 'Uploaded file is not a readable image'}), 400
             
         if file:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -86,10 +86,10 @@ def predict_image():
                 result['confidence_percent'] = round(result.get('confidence', 0) * 100, 1)
                 return jsonify(result)
             else:
-                return jsonify({'error': 'Image predictor not initialized'}), 500
+                return jsonify({'success': False, 'error': 'Image predictor not initialized'}), 500
                 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -112,9 +112,13 @@ def predict_track():
             session_state['predicted_track'] = predicted
             
             return jsonify({
+                'success': True,
                 'historical': historical,
                 'predicted': predicted,
-                'demo_mode': track_predictor.demo_mode
+                'demo_mode': track_predictor.demo_mode,
+                'forecast_horizon_hours': 48,
+                'forecast_step_hours': 3,
+                'uncertainty_label': 'Model-derived prototype uncertainty corridor based on held-out errors.'
             })
         else:
             return jsonify({'error': 'Track predictor not initialized'}), 500
@@ -192,15 +196,17 @@ def get_risk():
 @app.route('/api/model-metrics', methods=['GET'])
 def get_model_metrics():
     try:
-        metrics_file = os.path.join(getattr(config, 'RESULTS_DIR', ''), 'metrics', 'model_metrics.json')
-        if os.path.exists(metrics_file):
-            with open(metrics_file, 'r') as f:
-                metrics = json.load(f)
-            return jsonify(metrics)
-        else:
-            return jsonify({'available': False, 'message': 'Not trained yet'})
+        metrics_dir = os.path.join(getattr(config, 'RESULTS_DIR', ''), 'metrics')
+        metrics = {'available': False}
+        for name, key in [('cnn_metrics.json', 'cnn'), ('lstm_metrics.json', 'lstm')]:
+            path = os.path.join(metrics_dir, name)
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    metrics[key] = json.load(f)
+                metrics['available'] = True
+        return jsonify(metrics)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/demo-status', methods=['GET'])
 def get_demo_status():

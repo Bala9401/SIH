@@ -2,7 +2,7 @@
 
 // State variables
 let map;
-let historicalLayer, predictedLayer, currentMarker;
+let historicalLayer, predictedLayer, uncertaintyLayer, currentMarker;
 let charts = {};
 let isDemoMode = true;
 
@@ -97,6 +97,7 @@ function initMap() {
 function updateMap(historicalData, predictedData) {
     if (historicalLayer) map.removeLayer(historicalLayer);
     if (predictedLayer) map.removeLayer(predictedLayer);
+    if (uncertaintyLayer) map.removeLayer(uncertaintyLayer);
     if (currentMarker) map.removeLayer(currentMarker);
 
     const allPoints = [];
@@ -152,6 +153,17 @@ function updateMap(historicalData, predictedData) {
             L.circleMarker([p.lat, p.lon], {radius: 4, color: '#ff6b35', fillColor: '#10182b', fillOpacity: 1, weight: 2}).addTo(predictedLayer)
              .bindPopup(`<b>AI Predicted ${p.time_offset}</b><br>Lat: ${p.lat.toFixed(2)}, Lon: ${p.lon.toFixed(2)}<br>Wind: ${p.wind_speed ?? 'Not Available'}`);
         });
+
+        const cone = predictedData.filter(p => Number.isFinite(Number(p.uncertainty_radius_km)));
+        if (cone.length) {
+            const left = [], right = [];
+            cone.forEach(p => {
+                const radius = Number(p.uncertainty_radius_km) / 111;
+                left.push([p.lat + radius, p.lon]);
+                right.unshift([p.lat - radius, p.lon]);
+            });
+            uncertaintyLayer = L.polygon(left.concat(right), {color: '#f4c95d', fillColor: '#f4c95d', fillOpacity: 0.16, weight: 1}).addTo(map);
+        }
     }
 
     if (allPoints.length > 0) {
@@ -233,6 +245,9 @@ function setupUploadHandler() {
                 const confidence = data.confidence_percent ?? ((data.confidence || 0) * 100);
                 document.getElementById('card-confidence').innerText = confidence.toFixed(1) + '%';
                 document.getElementById('confidence-bar').style.width = `${confidence}%`;
+                if (data.intensity_classification_available === false) {
+                    document.getElementById('card-class').title = 'Satellite product classification only; no valid intensity labels are available.';
+                }
                 showToast('Image analysis complete!');
             } else {
                 showToast(data.error || 'Analysis failed', 'error');
@@ -298,6 +313,9 @@ function predictTrack(cycloneId) {
             updateMap(historical, predicted);
             updateTable(predicted);
             updateChartsData(historical, predicted);
+            const current = historical[historical.length - 1] || {};
+            document.getElementById('card-wind').innerText = current.wind_speed ?? '--';
+            document.getElementById('card-pressure').innerText = current.pressure ?? '--';
             return fetch('/api/risk').then(res => res.json());
         })
         .then(assessRisk)
@@ -334,6 +352,7 @@ function updateTable(predictions) {
             <td>${p.lat.toFixed(2)}&deg; N</td>
             <td>${p.lon.toFixed(2)}&deg; E</td>
             <td>${p.wind_speed ?? 'Not Available'}</td>
+            <td>${p.pressure ?? 'Not Available'}</td>
             <td><span class="badge ${badgeClass}">${p.risk || 'Not Available'}</span></td>
         `;
         tbody.appendChild(tr);
@@ -439,6 +458,8 @@ function updateChartsData(hist, pred) {
     
     const predWind = Array(hist.length-1).fill(null);
     predWind.push(hist[hist.length-1].wind_speed);
+    const predPressure = Array(hist.length-1).fill(null);
+    predPressure.push(hist[hist.length-1].pressure);
     
     const predLat = Array(hist.length-1).fill(null);
     predLat.push(hist[hist.length-1].lat);
@@ -449,6 +470,7 @@ function updateChartsData(hist, pred) {
     pred.forEach(p => {
         labels.push(`+${p.time_offset}h`);
         predWind.push(p.wind_speed);
+        predPressure.push(p.pressure);
         predLat.push(p.lat);
         predLon.push(p.lon);
     });
@@ -467,7 +489,7 @@ function updateChartsData(hist, pred) {
         labels: labels,
         datasets: [
             { label: 'Historical', data: presData, borderColor: '#f4c95d', tension: 0.3 },
-            { label: 'Predicted', data: pred.map(p => p.pressure), borderColor: '#ff6b35', borderDash: [5, 5], tension: 0.3 }
+            { label: 'Predicted', data: predPressure, borderColor: '#ff6b35', borderDash: [5, 5], tension: 0.3 }
         ]
     };
     charts.pressure.update();
@@ -496,13 +518,7 @@ function updateChartsData(hist, pred) {
 function loadModelMetrics() {
     fetch('/api/model-metrics')
         .then(res => res.json())
-        .catch(err => {
-            return {
-                success: true,
-                lstm: { lat_mae: 0.15, lon_mae: 0.18, rmse: 0.22 },
-                cnn: { accuracy: '92.4%' }
-            };
-        })
+        .catch(() => ({available: false}))
         .then(data => {
             if (data.available !== false) {
                 const cnn = data.cnn || {};
@@ -510,7 +526,7 @@ function loadModelMetrics() {
                 document.getElementById('metric-lat').innerText = lstm.lat_mae ?? 'Not Available';
                 document.getElementById('metric-lon').innerText = lstm.lon_mae ?? 'Not Available';
                 document.getElementById('metric-rmse').innerText = lstm.rmse ?? 'Not Available';
-                document.getElementById('metric-acc').innerText = cnn.accuracy ?? 'Not Available';
+                document.getElementById('metric-acc').innerText = cnn.accuracy != null ? `${(cnn.accuracy * 100).toFixed(1)}%` : 'Not Available';
             }
         });
 }

@@ -1,3 +1,4 @@
+import math
 import config
 
 class CycloneRiskAssessor:
@@ -6,12 +7,17 @@ class CycloneRiskAssessor:
         self.demo_mode = getattr(config, 'DEMO_MODE', True)
 
     def _estimate_coastal_proximity(self, lat, lon):
-        if lat < 8 or lat > 22 or lon < 68 or lon > 90:
-            return 0.1
-            
-        dist_to_coast = abs(lon - 80) + abs(lat - 15)
-        score = max(0, 1.0 - (dist_to_coast / 15.0))
-        return min(1.0, score)
+        # Prototype coastline reference points for India's east and west coasts.
+        coastline = [(8.1, 77.5), (10.0, 76.2), (15.0, 73.8), (19.0, 72.8),
+                     (21.5, 69.5), (20.3, 86.7), (16.5, 82.3), (13.0, 80.3),
+                     (10.8, 79.8), (22.0, 88.0)]
+        def distance_km(a, b):
+            lat1, lon1, lat2, lon2 = map(math.radians, [a[0], a[1], b[0], b[1]])
+            dlat, dlon = lat2 - lat1, lon2 - lon1
+            hav = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+            return 6371.0 * 2 * math.asin(math.sqrt(hav))
+        distance = min(distance_km((lat, lon), point) for point in coastline)
+        return max(0.0, min(1.0, 1.0 - distance / 500.0)), distance
 
     def _estimate_intensity_trend(self, track):
         if not track or len(track) < 2:
@@ -31,7 +37,8 @@ class CycloneRiskAssessor:
             
             curr_lat = current_position.get('lat', 15)
             curr_lon = current_position.get('lon', 85)
-            prox_score = self._estimate_coastal_proximity(curr_lat, curr_lon) * 100
+            proximity, distance_to_coast = self._estimate_coastal_proximity(curr_lat, curr_lon)
+            prox_score = proximity * 100
             
             trend = self._estimate_intensity_trend(predicted_track)
             trend_score = 100 if trend == "increasing" else (50 if trend == "stable" else 10)
@@ -72,7 +79,9 @@ class CycloneRiskAssessor:
                     "proximity_score": round(prox_score, 1),
                     "trend_score": round(trend_score, 1),
                     "pressure_score": round(pressure_score, 1)
+                    ,"distance_to_coast_km": round(distance_to_coast, 1)
                 },
+                "distance_to_coast_km": round(distance_to_coast, 1),
                 "demo_mode": self.demo_mode
             }
         except Exception as e:

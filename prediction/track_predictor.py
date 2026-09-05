@@ -24,7 +24,8 @@ class CycloneTrackPredictor:
             if os.path.exists(model_path) and os.path.exists(scaler_path):
                 self.model = load_model(model_path)
                 self.scaler = joblib.load(scaler_path)
-                self.demo_mode = False
+                output_size = int(self.model.output_shape[-1])
+                self.demo_mode = not (getattr(self.scaler, 'n_features_in_', 0) == 4 and output_size == 4)
         except Exception as e:
             print(f"Failed to load track predictor model: {e}")
             self.demo_mode = True
@@ -65,7 +66,7 @@ class CycloneTrackPredictor:
             
         return [{"id": "DEMO01", "name": "Demo Cyclone"}]
 
-    def predict_track(self, recent_track, steps=4):
+    def predict_track(self, recent_track, steps=16):
         if self.demo_mode or not recent_track or len(recent_track) < self.sequence_length:
             predictions = []
             if not recent_track:
@@ -75,6 +76,7 @@ class CycloneTrackPredictor:
             current_lat = last_point.get('lat', 15.0)
             current_lon = last_point.get('lon', 85.0)
             current_wind = last_point.get('wind', 50)
+            current_pressure = last_point.get('pressure')
             
             for i in range(1, steps + 1):
                 new_lat = current_lat + 0.5 * i
@@ -82,10 +84,12 @@ class CycloneTrackPredictor:
                 new_wind = current_wind + 5 * i
                 
                 predictions.append({
-                    "time": f"T+{i*3}h",
+                    "time": f"T+{i*3}h", "time_offset": i * 3,
                     "lat": round(new_lat, 2),
                     "lon": round(new_lon, 2),
                     "wind_estimated": round(new_wind, 1),
+                    "pressure_estimated": current_pressure,
+                    "uncertainty_radius_km": None,
                     "demo_mode": True
                 })
             return predictions
@@ -94,9 +98,8 @@ class CycloneTrackPredictor:
             features = []
             feature_count = getattr(self.scaler, 'n_features_in_', 3)
             for point in recent_track[-self.sequence_length:]:
-                values = [point.get('lat', 0), point.get('lon', 0), point.get('wind', 0)]
-                if feature_count > 3:
-                    values.append(point.get('pressure', 1000))
+                values = [point.get('lat', 0), point.get('lon', 0),
+                          point.get('wind', point.get('wind_speed', 0)), point.get('pressure')]
                 features.append(values[:feature_count])
                 
             input_seq = np.array(features)
@@ -110,6 +113,12 @@ class CycloneTrackPredictor:
                 input_seq = np.expand_dims(input_seq, axis=0)
 
             predictions = []
+            uncertainty_path = os.path.join(config.RESULTS_DIR, "metrics", "track_uncertainty.json")
+            uncertainty = {}
+            if os.path.exists(uncertainty_path):
+                with open(uncertainty_path, 'r') as uncertainty_file:
+                    uncertainty = json.load(uncertainty_file)
+            uncertainty_horizons = uncertainty.get('horizons', {})
             current_seq = input_seq.copy()
             
             for i in range(steps):
@@ -125,11 +134,13 @@ class CycloneTrackPredictor:
                 pred_pressure = pred_unscaled[3] if len(pred_unscaled) > 3 else None
                 
                 predictions.append({
-                    "time": f"T+{(i+1)*3}h",
+                    "time": f"T+{(i+1)*3}h", "time_offset": (i + 1) * 3,
                     "lat": float(pred_lat),
                     "lon": float(pred_lon),
                     "wind_estimated": float(pred_wind) if pred_wind is not None else None,
                     "pressure_estimated": float(pred_pressure) if pred_pressure is not None else None,
+                    "uncertainty_radius_km": (uncertainty_horizons.get(str((i + 1) * 3), {})
+                                               .get('p75_error_km')),
                     "demo_mode": False
                 })
                 
@@ -155,6 +166,8 @@ class CycloneTrackPredictor:
                     "lat": round(new_lat, 2),
                     "lon": round(new_lon, 2),
                     "wind_estimated": round(new_wind, 1),
+                    "pressure_estimated": last_point.get('pressure'),
+                    "uncertainty_radius_km": None,
                     "demo_mode": True,
                     "error": str(e)
                 })

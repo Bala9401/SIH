@@ -22,17 +22,14 @@ def train_lstm():
             return
             
         data = np.load(data_path)
-        X, y = data['X'], data['y']
-        
-        split = int(len(X) * 0.8)
-        X_train, X_test = X[:split], X[split:]
-        y_train, y_test = y[:split], y[split:]
+        X_train, y_train = data['X_train'], data['y_train']
+        X_val, y_val = data['X_val'], data['y_val']
         
         model = Sequential([
-            LSTM(LSTM_UNITS, input_shape=(X.shape[1], X.shape[2]), return_sequences=False),
+            LSTM(LSTM_UNITS, input_shape=(X_train.shape[1], X_train.shape[2]), return_sequences=False),
             Dropout(0.3),
             Dense(32, activation='relu'),
-            Dense(y.shape[1])
+            Dense(4)
         ])
         
         model.compile(optimizer='adam', loss='mse')
@@ -41,7 +38,7 @@ def train_lstm():
         callbacks = [EarlyStopping(patience=10)]
         
         print("Starting LSTM training...")
-        model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=LSTM_EPOCHS, batch_size=32, callbacks=callbacks)
+        model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=LSTM_EPOCHS, batch_size=32, callbacks=callbacks)
         
         model.save(MODEL_DIR / "cyclone_lstm.keras")
         print("LSTM training completed.")
@@ -50,7 +47,7 @@ def train_lstm():
         metric_dir = RESULTS_DIR / "metrics"
         metric_dir.mkdir(exist_ok=True)
         with open(metric_dir / "lstm_metrics.json", "w") as f:
-            json.dump({"loss": "mse"}, f)
+            json.dump({"status": "trained", "evaluation": "run python scripts/evaluate_models.py"}, f, indent=2)
     except ImportError:
         print("TensorFlow not installed. Skipping actual LSTM training.")
     except Exception as e:

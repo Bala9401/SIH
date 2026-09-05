@@ -14,6 +14,7 @@ def train_cnn():
         from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout
         from tensorflow.keras.models import Model
         from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+        from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
         
         proc_dir = DATA_DIR / "processed_satellite"
         if not proc_dir.exists() or not list(proc_dir.iterdir()):
@@ -30,6 +31,12 @@ def train_cnn():
         )
         class_names = train_ds.class_names
         num_classes = len(class_names)
+
+        if num_classes < 2:
+            raise ValueError("CNN needs at least two labeled folders. Current satellite folders are product sources, not intensity labels.")
+
+        train_ds = train_ds.map(lambda images, labels: (preprocess_input(tf.cast(images, tf.float32)), labels))
+        val_ds = val_ds.map(lambda images, labels: (preprocess_input(tf.cast(images, tf.float32)), labels))
         
         base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
         base_model.trainable = False
@@ -54,7 +61,9 @@ def train_cnn():
         history = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, callbacks=callbacks)
         
         with open(MODEL_DIR / "metadata.json", "w") as f:
-            json.dump({"class_names": class_names}, f)
+            json.dump({"class_names": class_names, "task": "satellite_product_classification",
+                       "preprocessing": "tensorflow.keras.applications.mobilenet_v2.preprocess_input",
+                       "intensity_labels_available": False}, f, indent=2)
             
         print("CNN training completed.")
     except ImportError:

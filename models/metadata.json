@@ -1,1 +1,10 @@
-{"class_names": ["insat3d_for_reference_ds", "insat3d_ir_cyclone_ds", "insat3d_raw_cyclone_ds"]}
+{
+  "class_names": [
+    "insat3d_for_reference_ds",
+    "insat3d_ir_cyclone_ds",
+    "insat3d_raw_cyclone_ds"
+  ],
+  "task": "satellite_product_classification",
+  "preprocessing": "tensorflow.keras.applications.mobilenet_v2.preprocess_input",
+  "intensity_labels_available": false
+}

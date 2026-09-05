@@ -15,13 +15,13 @@ DEMO_MODE = not all((MODEL_DIR / name).exists() for name in (
 # CNN Config
 IMAGE_SIZE = 224
 BATCH_SIZE = 32
-EPOCHS = 15
+EPOCHS = 5
 NUM_CLASSES = 2 # Placeholder, will be auto-detected
 
 # LSTM Config
 SEQUENCE_LENGTH = 6
 LSTM_UNITS = 64
-LSTM_EPOCHS = 50
+LSTM_EPOCHS = 10
 
 # Risk thresholds (wind speed in knots)
 RISK_THRESHOLDS = {
