@@ -9,6 +9,7 @@ except ImportError:
     pass
 
 import config
+from prediction.cyclone_matcher import CycloneMatcher
 
 class CycloneTrackPredictor:
     def __init__(self):
@@ -16,6 +17,7 @@ class CycloneTrackPredictor:
         self.model = None
         self.scaler = None
         self.sequence_length = getattr(config, 'SEQUENCE_LENGTH', 6)
+        self.cyclone_matcher = CycloneMatcher()
 
         try:
             model_path = os.path.join(config.MODEL_DIR, "cyclone_lstm.keras")
@@ -31,9 +33,6 @@ class CycloneTrackPredictor:
             self.demo_mode = True
 
     def get_historical_track(self, cyclone_id=None):
-        if self.demo_mode:
-            return getattr(config, 'DEMO_CYCLONE_DATA', [])
-        
         try:
             processed_data_path = os.path.join(config.DATA_DIR, "processed", "cyclone_tracks.json")
             if os.path.exists(processed_data_path):
@@ -42,14 +41,35 @@ class CycloneTrackPredictor:
                 
                 if cyclone_id and cyclone_id in data:
                     return data[cyclone_id]
-                else:
-                    if data:
-                        return list(data.values())[0]
-                    return []
         except Exception as e:
             print(f"Error loading historical track: {e}")
-            
-        return getattr(config, 'DEMO_CYCLONE_DATA', [])
+
+        if self.demo_mode and cyclone_id == "FANI2019":
+            return getattr(config, 'DEMO_CYCLONE_DATA', [])
+        return []
+
+    def _load_tracks(self):
+        processed_data_path = os.path.join(config.DATA_DIR, "processed", "cyclone_tracks.json")
+        if not os.path.exists(processed_data_path):
+            return {}
+        with open(processed_data_path, 'r') as f:
+            return json.load(f)
+
+    def identify_cyclone(self, image_analysis):
+        tracks = self._load_tracks()
+        mapping_result = self.cyclone_matcher.match(image_analysis, tracks)
+        if mapping_result.get('matched'):
+            if mapping_result['cyclone_id'] not in tracks:
+                return {"matched": False, "reason": "Verified mapping points to an unavailable IBTrACS track."}
+            return mapping_result
+        # A satellite product image cannot be assigned to an IBTrACS storm from
+        # timestamp/position proximity alone.  That would make the subsequent
+        # LSTM forecast look image-derived when it is not.  The UI therefore
+        # offers the user a clearly labelled manual storm selection instead.
+        return {
+            "matched": False,
+            "reason": "No verified satellite-image-to-cyclone mapping is available. Select the cyclone manually to run the LSTM forecast."
+        }
 
     def get_available_cyclones(self):
         if self.demo_mode:
@@ -60,14 +80,39 @@ class CycloneTrackPredictor:
             if os.path.exists(processed_data_path):
                 with open(processed_data_path, 'r') as f:
                     data = json.load(f)
-                return [{"id": cid, "name": cid} for cid in data.keys()]
+                metadata_path = os.path.join(config.DATA_DIR, "processed", "ibtracs_metadata.json")
+                names = {}
+                if os.path.exists(metadata_path):
+                    with open(metadata_path, 'r') as f:
+                        names = json.load(f).get('storm_names', {})
+                # Anonymous early-era IBTrACS records are valid observations but
+                # make a human-selection UI misleading. They remain in model
+                # training data, while the dashboard offers named storms only.
+                return [
+                    {"id": cid, "name": name}
+                    for cid, name in names.items()
+                    if cid in data and name not in (None, '', 'NOT_NAMED')
+                ]
         except Exception:
             pass
             
         return [{"id": "DEMO01", "name": "Demo Cyclone"}]
 
+    def get_cyclone_name(self, cyclone_id):
+        if not cyclone_id:
+            return None
+        metadata_path = os.path.join(config.DATA_DIR, "processed", "ibtracs_metadata.json")
+        try:
+            with open(metadata_path, 'r') as f:
+                name = json.load(f).get('storm_names', {}).get(cyclone_id)
+                return name if name not in (None, '', 'NOT_NAMED') else None
+        except (OSError, json.JSONDecodeError):
+            return None
+
     def predict_track(self, recent_track, steps=16):
         if self.demo_mode or not recent_track or len(recent_track) < self.sequence_length:
+            # A missing model must not produce a plausible-looking fabricated
+            # storm path.  Persistence is an explicit, reproducible baseline.
             predictions = []
             if not recent_track:
                 return predictions
@@ -79,18 +124,15 @@ class CycloneTrackPredictor:
             current_pressure = last_point.get('pressure')
             
             for i in range(1, steps + 1):
-                new_lat = current_lat + 0.5 * i
-                new_lon = current_lon - 0.2 * i + 0.05 * (i**2)
-                new_wind = current_wind + 5 * i
                 
                 predictions.append({
                     "time": f"T+{i*3}h", "time_offset": i * 3,
-                    "lat": round(new_lat, 2),
-                    "lon": round(new_lon, 2),
-                    "wind_estimated": round(new_wind, 1),
+                    "lat": round(current_lat, 2),
+                    "lon": round(current_lon, 2),
+                    "wind_estimated": round(current_wind, 1),
                     "pressure_estimated": current_pressure,
                     "uncertainty_radius_km": None,
-                    "demo_mode": True
+                    "demo_mode": True, "forecast_method": "persistence_baseline"
                 })
             return predictions
 
@@ -157,18 +199,15 @@ class CycloneTrackPredictor:
             current_wind = last_point.get('wind', 50)
             
             for i in range(1, steps + 1):
-                new_lat = current_lat + 0.5 * i
-                new_lon = current_lon - 0.2 * i + 0.05 * (i**2)
-                new_wind = current_wind + 5 * i
                 
                 demo_pred.append({
                     "time": f"T+{i*3}h",
-                    "lat": round(new_lat, 2),
-                    "lon": round(new_lon, 2),
-                    "wind_estimated": round(new_wind, 1),
+                    "lat": round(current_lat, 2),
+                    "lon": round(current_lon, 2),
+                    "wind_estimated": round(current_wind, 1),
                     "pressure_estimated": last_point.get('pressure'),
                     "uncertainty_radius_km": None,
                     "demo_mode": True,
-                    "error": str(e)
+                    "error": str(e), "forecast_method": "persistence_baseline"
                 })
             return demo_pred

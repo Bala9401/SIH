@@ -19,6 +19,17 @@ class CycloneRiskAssessor:
         distance = min(distance_km((lat, lon), point) for point in coastline)
         return max(0.0, min(1.0, 1.0 - distance / 500.0)), distance
 
+    def _coastal_score_for_track(self, track):
+        scores = []
+        distances = []
+        for point in track:
+            if point.get('lat') is None or point.get('lon') is None:
+                continue
+            score, distance = self._estimate_coastal_proximity(point['lat'], point['lon'])
+            scores.append(score * 100)
+            distances.append(distance)
+        return (max(scores) if scores else 0.0), (min(distances) if distances else None)
+
     def _estimate_intensity_trend(self, track):
         if not track or len(track) < 2:
             return "stable"
@@ -31,35 +42,80 @@ class CycloneRiskAssessor:
                 return "decreasing"
         return "stable"
 
-    def assess_risk(self, wind_speed, predicted_track, current_position, pressure=None):
+    def _risk_level(self, score):
+        if score < 25:
+            return "LOW"
+        if score < 50:
+            return "MODERATE"
+        if score < 75:
+            return "HIGH"
+        return "VERY HIGH"
+
+    def assess_risk(self, wind_speed, predicted_track, current_position, pressure=None,
+                    satellite_analysis=None):
         try:
-            wind_score = min(100, max(0, (wind_speed - 30) / 100 * 100))
+            if wind_speed is None or not current_position:
+                return {
+                    "risk_level": "INSUFFICIENT DATA",
+                    "risk_score": None,
+                    "reason": "Current wind and cyclone position are required for meteorological risk calculation.",
+                    "recommended_actions": ["Obtain verified meteorological observations and follow official advisories."],
+                    "satellite_analysis": satellite_analysis,
+                    "meteorological_factors": {"wind_speed": wind_speed, "pressure": pressure},
+                    "factors": {},
+                    "risk_weights": {},
+                    "distance_to_coast_km": None,
+                    "risk_source": "meteorological_track_and_coastal_analysis",
+                    "satellite_contribution": "unavailable",
+                    "final_risk_assessment": "Insufficient meteorological data.",
+                    "demo_mode": self.demo_mode
+                }
+            wind_score = min(100, max(0, (float(wind_speed) - 20) / 80 * 100))
             
             curr_lat = current_position.get('lat', 15)
             curr_lon = current_position.get('lon', 85)
             proximity, distance_to_coast = self._estimate_coastal_proximity(curr_lat, curr_lon)
-            prox_score = proximity * 100
+            current_coast_score = proximity * 100
+            forecast_coast_score, forecast_distance = self._coastal_score_for_track(predicted_track)
+            prox_score = (current_coast_score * 0.4 + forecast_coast_score * 0.6
+                          if predicted_track else current_coast_score)
             
             trend = self._estimate_intensity_trend(predicted_track)
-            trend_score = 100 if trend == "increasing" else (50 if trend == "stable" else 10)
+            trend_score = 100 if trend == "increasing" else (50 if trend == "stable" else 0)
             
-            pressure_score = 50
-            if pressure:
-                pressure_score = min(100, max(0, (1010 - pressure) / 100 * 100))
-                
-            risk_score = (wind_score * 0.4) + (prox_score * 0.3) + (trend_score * 0.2) + (pressure_score * 0.1)
+            pressure_score = None
+            if pressure is not None:
+                pressure_score = min(100, max(0, (1010 - float(pressure)) / 60 * 100))
+
+            uncertainty_values = [p.get('uncertainty_radius_km') for p in predicted_track
+                                  if p.get('uncertainty_radius_km') is not None]
+            uncertainty_score = min(100, max(0, (max(uncertainty_values) if uncertainty_values else 0) / 300 * 100))
+            image_score = None
+            if satellite_analysis and satellite_analysis.get('image_risk_score') is not None:
+                image_score = min(100, max(0, float(satellite_analysis['image_risk_score'])))
+
+            weights = {'satellite': 0.30, 'wind': 0.25, 'pressure': 0.15,
+                       'proximity': 0.15, 'trend': 0.10, 'uncertainty': 0.05}
+            values = {'satellite': image_score, 'wind': wind_score,
+                      'pressure': pressure_score, 'proximity': prox_score,
+                      'trend': trend_score, 'uncertainty': uncertainty_score}
+            available = {name: value for name, value in values.items() if value is not None}
+            weight_total = sum(weights[name] for name in available)
+            risk_score = sum(available[name] * weights[name] for name in available) / weight_total
             risk_score = round(risk_score, 1)
-            
-            if risk_score < 25:
-                risk_level = "LOW"
-            elif risk_score < 50:
-                risk_level = "MODERATE"
-            elif risk_score < 75:
-                risk_level = "HIGH"
-            else:
-                risk_level = "VERY HIGH"
+
+            risk_level = self._risk_level(risk_score)
                 
-            reason = f"Risk is {risk_level} primarily due to wind speeds of {wind_speed} knots and a {trend} intensity trend."
+            reason_parts = [f"wind {float(wind_speed):.1f} km/h",
+                            f"{trend} forecast trend",
+                            f"nearest forecast coast distance {forecast_distance:.1f} km" if forecast_distance is not None else "no forecast coast approach"]
+            if pressure is None:
+                reason_parts.append("pressure unavailable; weights redistributed")
+            if image_score is not None:
+                reason_parts.append(f"satellite product context score {image_score:.1f}/100")
+            else:
+                reason_parts.append("satellite image unavailable; weights redistributed")
+            reason = f"Risk is {risk_level}, based on " + ", ".join(reason_parts) + "."
             
             recommended_actions = []
             if risk_level in ["HIGH", "VERY HIGH"]:
@@ -74,23 +130,45 @@ class CycloneRiskAssessor:
                 "risk_score": risk_score,
                 "reason": reason,
                 "recommended_actions": recommended_actions,
-                "factors": {
-                    "wind_score": round(wind_score, 1),
-                    "proximity_score": round(prox_score, 1),
-                    "trend_score": round(trend_score, 1),
-                    "pressure_score": round(pressure_score, 1)
-                    ,"distance_to_coast_km": round(distance_to_coast, 1)
+                "satellite_analysis": satellite_analysis,
+                "image_risk_score": image_score,
+                "risk_contribution": {
+                    key: round(available[key] * weights[key] / weight_total, 1)
+                    if key in available else None
+                    for key in weights
                 },
+                "meteorological_factors": {
+                    "wind_speed": wind_speed,
+                    "pressure": pressure,
+                    "distance_to_coast_km": round(distance_to_coast, 1),
+                    "coastal_distance": round(distance_to_coast, 1),
+                    "forecast_distance_to_coast_km": round(forecast_distance, 1) if forecast_distance is not None else None,
+                    "trend": trend,
+                    "intensity_trend": trend,
+                    "uncertainty_available": bool(uncertainty_values)
+                },
+                "factors": {f"{name}_score": (round(value, 1) if value is not None else None)
+                            for name, value in values.items()},
                 "distance_to_coast_km": round(distance_to_coast, 1),
+                "risk_weights": {name: round(weights[name] / weight_total, 3) for name in available},
+                "final_risk_assessment": "Transparent weighted assessment; satellite product class contributes bounded contextual evidence only.",
+                "risk_source": "satellite_context_and_meteorological_track_analysis",
+                "satellite_contribution": "bounded_contextual_score" if image_score is not None else "unavailable",
                 "demo_mode": self.demo_mode
             }
         except Exception as e:
             print(f"Error assessing risk: {e}")
             return {
-                "risk_level": "UNKNOWN",
-                "risk_score": 0,
+                "risk_level": "INSUFFICIENT DATA",
+                "risk_score": None,
                 "reason": f"Error calculating risk: {str(e)}",
                 "recommended_actions": [],
+                "satellite_analysis": satellite_analysis,
+                "meteorological_factors": {},
                 "factors": {},
+                "risk_weights": {},
+                "distance_to_coast_km": None,
+                "risk_source": "meteorological_track_and_coastal_analysis",
+                    "satellite_contribution": "unavailable",
                 "demo_mode": True
             }

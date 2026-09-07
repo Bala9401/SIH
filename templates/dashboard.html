@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Cyclone EWS | Dashboard</title>
+    <title>AI Cyclone Early Warning System - Dashboard</title>
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     
-    <!-- Bootstrap 5 CSS -->
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
@@ -23,284 +23,329 @@
 <body>
 
     <!-- Disclaimer Banner -->
-    <div class="disclaimer-banner">
-        ⚠️ Prototype AI prediction only. Not an official meteorological warning system. Always follow local authorities.
+    <div class="prototype-alert text-center py-2 fw-bold" style="font-size: 0.9rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i> DISCLAIMER: This is a prototype AI system developed for SIH. Not for actual operational disaster response.
     </div>
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-glass sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-darker border-bottom border-secondary">
         <div class="container-fluid px-4">
-            <a class="navbar-brand" href="/">
-                <i class="fa-solid fa-hurricane me-2 text-info"></i>AI Cyclone EWS
+            <a class="navbar-brand brand-font d-flex align-items-center" href="/">
+                <i class="fas fa-hurricane text-cyan me-2 fs-3"></i>
+                AI-CEWS
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/dashboard">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/about">About</a>
-                    </li>
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
                 </ul>
                 <div class="d-flex align-items-center">
-                    <span id="demoBadge" class="badge bg-warning text-dark me-3 py-2 px-3 d-none">
-                        <i class="fa-solid fa-vial me-1"></i> DEMO MODE
-                    </span>
-                    <span id="sysTime" class="text-muted small"></span>
+                    <span id="demoBadge" class="badge-demo me-3"><i class="fas fa-flask me-1"></i> DEMO MODE</span>
+                    <span id="sysTime" class="text-muted small font-monospace"><i class="far fa-clock me-1"></i> --:--:--</span>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="container-fluid p-4">
+    <div class="container-fluid py-3 px-4">
         
-        <div id="demoBannerContainer"></div>
+        <!-- System Header -->
+        <div class="system-header mb-4">
+            <h1 class="brand-font mb-2">🌪️ AI CYCLONE EARLY WARNING SYSTEM</h1>
+            <p class="text-muted lead fs-6">AI-Based Identification &bull; Classification &bull; Track Prediction &bull; Risk Assessment</p>
+        </div>
 
-        <!-- Section 1: Status Cards -->
-        <div class="row g-4 mb-4">
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card">
-                    <div class="status-icon cyan"><i class="fa-solid fa-satellite-dish"></i></div>
-                    <div class="status-info">
-                        <h6>Status</h6>
-                        <h3 id="card-status">Active</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card">
-                    <div class="status-icon cyan"><i class="fa-solid fa-layer-group"></i></div>
-                    <div class="status-info">
-                        <h6>Class</h6>
-                        <h3 id="card-class">--</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card">
-                    <div class="status-icon cyan"><i class="fa-solid fa-bullseye"></i></div>
-                    <div class="status-info w-100">
-                        <h6>Confidence</h6>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h3 id="card-confidence">--%</h3>
-                        </div>
-                        <div class="progress mt-2">
-                            <div id="confidence-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+        <!-- KPI Cards Row -->
+        <div class="row mb-4">
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Status</div>
+                    <div class="d-flex align-items-center">
+                        <div id="card-status" class="fs-5 fw-bold text-success">
+                            <i class="fas fa-check-circle me-2"></i>Active
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card">
-                    <div class="status-icon yellow"><i class="fa-solid fa-wind"></i></div>
-                    <div class="status-info">
-                        <h6>Wind Speed</h6>
-                        <h3><span id="card-wind">--</span> <small class="fs-6">km/h</small></h3>
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Cyclone Name</div>
+                    <div id="card-cyclone-name" class="fs-5 fw-bold text-white">N/A</div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Product Confidence</div>
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span id="card-confidence" class="fs-5 fw-bold text-white">--%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1);">
+                        <div id="confidence-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card">
-                    <div class="status-icon cyan"><i class="fa-solid fa-gauge-high"></i></div>
-                    <div class="status-info">
-                        <h6>Pressure</h6>
-                        <h3><span id="card-pressure">--</span> <small class="fs-6">hPa</small></h3>
-                    </div>
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Wind Speed</div>
+                    <div id="card-wind" class="fs-5 fw-bold text-white">-- km/h</div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-6">
-                <div class="glass-card status-card" id="risk-card">
-                    <div class="status-icon green" id="risk-icon"><i class="fa-solid fa-shield-check"></i></div>
-                    <div class="status-info">
-                        <h6>Risk Level</h6>
-                        <h3 id="card-risk">Low</h3>
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Pressure</div>
+                    <div id="card-pressure" class="fs-5 fw-bold text-white">-- hPa</div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-6 mb-3">
+                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
+                    <div class="text-muted small mb-1">Risk Level</div>
+                    <div id="card-risk" class="fs-5 fw-bold text-secondary">
+                        <i id="risk-icon" class="fas fa-shield-halved me-2"></i>Unknown
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Section 2: Input Controls -->
-        <div class="row g-4 mb-4">
-            <!-- Upload Area -->
-            <div class="col-lg-5">
-                <div class="glass-card p-4 h-100">
-                    <h5 class="mb-3"><i class="fa-solid fa-satellite me-2"></i>Satellite Image Analysis</h5>
-                    <div class="upload-area" id="dropZone">
-                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                        <h5>Drag & Drop Satellite Image</h5>
-                        <p class="text-muted small">or click to browse (JPG, PNG, TIFF)</p>
-                        <input type="file" id="fileInput" class="d-none" accept="image/*">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-xl-4 col-lg-5 mb-4">
+                
+                <!-- Satellite Image Upload -->
+                <div class="glass-card mb-4">
+                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
+                        <i class="fas fa-satellite me-2 text-cyan"></i> Satellite Analysis
+                    </h5>
+                    
+                    <div class="mb-3">
+                        <div id="dropZone" class="upload-area">
+                            <i class="fas fa-cloud-upload-alt fs-1 text-muted mb-2"></i>
+                            <p class="mb-0">Drag & Drop INSAT-3D Image</p>
+                            <p class="text-muted small">or click to browse</p>
+                            <input type="file" id="fileInput" class="d-none" accept="image/*">
+                        </div>
+                        <div id="imagePreviewContainer" class="d-none mt-3 text-center position-relative">
+                            <img id="imagePreview" src="" alt="Preview" class="img-fluid rounded border border-secondary">
+                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" onclick="clearImagePreview()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                     
-                    <div id="imagePreviewContainer" class="text-center">
-                        <img id="imagePreview" src="" alt="Preview">
-                        <div class="mt-3">
-                            <button id="btnAnalyzeImg" class="btn btn-gradient w-100">
-                                <i class="fa-solid fa-microchip me-2"></i>Analyze Cyclone Image
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Track Prediction -->
-            <div class="col-lg-7">
-                <div class="glass-card p-4 h-100">
-                    <h5 class="mb-3"><i class="fa-solid fa-route me-2"></i>Track Prediction (LSTM)</h5>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-8">
-                            <label class="form-label text-muted">Select Active Cyclone Data</label>
-                            <select id="cycloneSelect" class="form-select form-select-lg">
-                                <option value="" disabled selected>Loading cyclones...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <button id="btnPredictTrack" class="btn btn-gradient w-100 py-2">
-                                <i class="fa-solid fa-wand-magic-sparkles me-2"></i>Predict Track
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mt-4 pt-3 border-top border-secondary">
-                        <h6 class="text-muted mb-3">Model Performance Metrics</h6>
-                        <div class="row text-center g-2" id="metricsContainer">
-                            <div class="col-3">
-                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05)">
-                                    <div class="small text-muted">Lat MAE</div>
-                                    <div class="fw-bold" id="metric-lat">--</div>
-                                </div>
-                            </div>
-                            <div class="col-3">
-                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05)">
-                                    <div class="small text-muted">Lon MAE</div>
-                                    <div class="fw-bold" id="metric-lon">--</div>
-                                </div>
-                            </div>
-                            <div class="col-3">
-                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05)">
-                                    <div class="small text-muted">RMSE</div>
-                                    <div class="fw-bold" id="metric-rmse">--</div>
-                                </div>
-                            </div>
-                            <div class="col-3">
-                                <div class="p-2 rounded" style="background: rgba(255,255,255,0.05)">
-                                    <div class="small text-muted">CNN Acc</div>
-                                    <div class="fw-bold" id="metric-acc">--</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                    <button id="btnAnalyzeImg" class="btn btn-gradient w-100 py-2 fw-bold disabled">
+                        <i class="fas fa-microchip me-2"></i> Analyze Image
+                    </button>
 
-        <!-- Section 3 & 6: Map and Warning Panel -->
-        <div class="row g-4 mb-4">
-            <div class="col-lg-8">
-                <div class="glass-card p-2 h-100">
+                    <!-- Image Analysis Results -->
+                    <div id="imageAnalysisResults" class="mt-3 p-3 rounded bg-dark border border-secondary d-none">
+                        <h6 class="text-info border-bottom border-secondary pb-1 mb-2">CNN Satellite Product Analysis</h6>
+                        <div class="row small">
+                            <div class="col-6 mb-1 text-muted">Detected:</div>
+                            <div class="col-6 mb-1 fw-bold" id="res-cyclone-detected"></div>
+                            
+                            <div class="col-6 mb-1 text-muted">Product class:</div>
+                            <div class="col-6 mb-1 fw-bold text-warning" id="res-prediction"></div>
+                            
+                            <div class="col-6 mb-1 text-muted">CNN class confidence:</div>
+                            <div class="col-6 mb-1 fw-bold" id="res-confidence"></div>
+                            
+                            <div class="col-6 mb-1 text-muted">Risk Score:</div>
+                            <div class="col-6 mb-1 fw-bold text-danger" id="res-risk-score"></div>
+                            
+                            <div class="col-6 text-muted">Risk Level:</div>
+                            <div class="col-6 fw-bold" id="res-risk-level"></div>
+
+                            <div class="col-12 mt-2 text-muted" id="res-track-status">
+                                Select a cyclone below to generate an LSTM track forecast.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Track Prediction Controls -->
+                <div class="glass-card mb-4">
+                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
+                        <i class="fas fa-route me-2 text-primary"></i> Track Prediction (LSTM)
+                    </h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Upload-to-track works automatically only for images listed in the verified mapping file. Otherwise, choose a named historical cyclone for manual exploration.</label>
+                        <select id="cycloneSelect" class="form-select bg-dark text-white border-secondary">
+                            <option value="">-- Choose a named historical cyclone --</option>
+                        </select>
+                    </div>
+                    
+                    <button id="btnPredictTrack" class="btn btn-outline-info w-100 py-2">
+                        <i class="fas fa-play me-2"></i> Load & Predict Track
+                    </button>
+                </div>
+
+                <!-- Model Performance Metrics -->
+                <div class="glass-card">
+                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2 text-muted fs-6">
+                        <i class="fas fa-chart-line me-2"></i> Model Performance Metrics
+                    </h5>
+                    <div class="row g-2 small text-muted">
+                        <div class="col-6">
+                            <div class="p-2 border border-secondary rounded text-center">
+                                <div class="d-block mb-1">Track Lat MAE</div>
+                                <strong class="text-white" id="metric-lat">--</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border border-secondary rounded text-center">
+                                <div class="d-block mb-1">Track Lon MAE</div>
+                                <strong class="text-white" id="metric-lon">--</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border border-secondary rounded text-center">
+                                <div class="d-block mb-1">CNN Accuracy</div>
+                                <strong class="text-white" id="metric-acc">--</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border border-secondary rounded text-center">
+                                <div class="d-block mb-1">CNN F1 Score</div>
+                                <strong class="text-white" id="metric-f1">--</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle & Right Columns -->
+            <div class="col-xl-8 col-lg-7">
+                
+                <!-- Map Container -->
+                <div class="glass-card p-2 mb-4 position-relative">
                     <div id="cyclone-map"></div>
+                    <div class="position-absolute top-0 end-0 m-3 z-3 bg-dark p-2 rounded border border-secondary opacity-75 small">
+                        <i class="fas fa-circle text-danger me-1"></i> Observed
+                        <br>
+                        <i class="fas fa-circle text-warning me-1"></i> Predicted (LSTM)
+                    </div>
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="glass-card warning-panel p-4 h-100 d-flex flex-column">
-                    <h5 class="mb-4"><i class="fa-solid fa-triangle-exclamation me-2"></i>Early Warning Assessment</h5>
+
+                <!-- Early Warning Assessment Panel -->
+                <div class="glass-card mb-4" id="warning-assessment-panel">
+                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
+                        <i class="fas fa-triangle-exclamation me-2 text-warning"></i> Early Warning & Risk Assessment
+                    </h5>
                     
-                    <div class="text-center mb-4 flex-grow-1 d-flex flex-column justify-content-center">
-                        <div id="warning-icon-large" class="mb-3" style="font-size: 4rem; color: var(--accent-green);">
-                            <i class="fa-solid fa-shield-check"></i>
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div id="dynamic-warning-banner" class="warning-panel">
+                                <h4 class="mb-1 d-flex align-items-center">
+                                    <i class="fas fa-shield-halved me-2" id="panel-risk-icon"></i>
+                                    <span id="panel-risk-level">Awaiting Data</span>
+                                </h4>
+                                <div class="fs-2 fw-bold text-white mb-2">Score: <span id="panel-risk-score">--</span>/100</div>
+                                <p class="small text-muted mb-0">Source: <span id="panel-risk-source">N/A</span></p>
+                            </div>
                         </div>
-                        <h2 id="warning-title" class="fw-bold text-success mb-2">LOW RISK</h2>
-                        <p id="warning-desc" class="text-muted">No immediate threat detected from the current cyclone trajectory.</p>
-                    </div>
-                    
-                    <div class="mt-auto">
-                        <h6 class="text-white">Recommended Actions:</h6>
-                        <ul id="warning-actions" class="text-muted small ps-3 mb-0">
-                            <li>Continue normal activities</li>
-                            <li>Stay tuned to routine weather updates</li>
-                        </ul>
+                        <div class="col-md-7">
+                            <h6 class="text-white mb-2">Assessment Summary</h6>
+                            <p id="panel-warning-desc" class="small text-muted mb-3">
+                                Upload a satellite image or select a cyclone to generate a risk assessment.
+                            </p>
+                            
+                            <h6 class="text-white mb-2">Recommended Actions</h6>
+                            <ul id="panel-actions-list" class="small text-muted mb-0 ps-3">
+                                <li>Monitor system status.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Data Tables & Charts Tabs -->
+                <div class="glass-card">
+                    <ul class="nav nav-tabs border-secondary mb-3" id="dataTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active bg-transparent text-white" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts-pane" type="button" role="tab">Prediction Charts</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link bg-transparent text-muted" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-pane" type="button" role="tab">Data Table</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="dataTabsContent">
+                        <!-- Charts Tab -->
+                        <div class="tab-pane fade show active" id="charts-pane" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="p-2 border border-secondary rounded">
+                                        <canvas id="windChart" height="200"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="p-2 border border-secondary rounded">
+                                        <canvas id="pressureChart" height="200"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="p-2 border border-secondary rounded">
+                                        <canvas id="latChart" height="200"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="p-2 border border-secondary rounded">
+                                        <canvas id="lonChart" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Table Tab -->
+                        <div class="tab-pane fade" id="table-pane" role="tabpanel">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm table-dark-custom">
+                                    <thead>
+                                        <tr>
+                                            <th>Time (h)</th>
+                                            <th>Lat (°N)</th>
+                                            <th>Lon (°E)</th>
+                                            <th>Wind (km/h)</th>
+                                            <th>Pressure (hPa)</th>
+                                            <th>Risk</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="predicted-track-body">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">No prediction data available</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
-
-        <!-- Section 4 & 5: Charts and Table -->
-        <div class="row g-4 mb-4">
-            <div class="col-lg-7">
-                <div class="glass-card p-4 h-100">
-                    <h5 class="mb-3"><i class="fa-solid fa-chart-line me-2"></i>Trajectory Trends</h5>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="windChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="pressureChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="latChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="lonChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-lg-5">
-                <div class="glass-card p-4 h-100 d-flex flex-column">
-                    <h5 class="mb-3"><i class="fa-solid fa-table me-2"></i>Predicted Track Data</h5>
-                    <div class="table-responsive flex-grow-1" style="max-height: 520px; overflow-y: auto;">
-                        <table class="table table-dark table-hover mb-0">
-                            <thead class="sticky-top bg-dark">
-                                <tr>
-                                    <th>Time (+hrs)</th>
-                                    <th>Lat</th>
-                                    <th>Lon</th>
-                                    <th>Wind</th>
-                                    <th>Pressure</th>
-                                    <th>Risk</th>
-                                </tr>
-                            </thead>
-                            <tbody id="predictionTableBody">
-                                <tr><td colspan="6" class="text-center text-muted py-4">No prediction data available. Run model to generate forecast.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
     <!-- Toast Notifications -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
-                <strong class="me-auto" id="toastTitle">Notification</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body" id="toastMessage"></div>
-        </div>
+        <!-- Toasts injected by JS -->
     </div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/dashboard.js"></script>
+    <script>
+        function clearImagePreview() {
+            document.getElementById('imagePreviewContainer').classList.add('d-none');
+            document.getElementById('fileInput').value = '';
+            document.getElementById('btnAnalyzeImg').classList.add('disabled');
+            document.getElementById('dropZone').classList.remove('d-none');
+            document.getElementById('imageAnalysisResults').classList.add('d-none');
+        }
+    </script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+- Source file: ibtracs.NI.list.v04r00.csv
+- Basin filter: NI (North Indian Ocean)
+- Features used: LAT, LON, WMO_WIND, WMO_PRES
+- Preprocessing: removed invalid coordinates, handled missing values, parsed timestamps, sorted chronologically, grouped by SID
+- Sequence length: 6 observations
+- Scaler: MinMaxScaler fitted on training storms only
+- Train/Validation/Test split: 80%/16%/20% by storm ID

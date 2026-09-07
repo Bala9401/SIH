@@ -16,9 +16,13 @@ If you wish to train the CNN and LSTM models on real-world historical data, foll
 
 ---
 
-## 1. Satellite Imagery Dataset (TheCycloneImageDataset)
+## 1. Satellite Imagery Dataset (Current evidence)
 
-The satellite image dataset is used to train the Convolutional Neural Network (CNN - MobileNetV2) for cyclone identification and intensity classification.
+The current satellite image dataset is used only for satellite-product classification. It does not currently support defensible cyclone detection or intensity classification.
+
+The companion `insat_3d_ds - Sheet.csv` contains numeric values in a `label` column, but it does not document units, timestamp, cyclone ID, or provenance. The images also lack a cyclone ID. The project therefore does not use those values as wind or intensity labels.
+
+Run `python scripts\analyze_satellite_dataset.py` to generate `results/satellite_dataset_report.json`. The current report records zero reliable image-to-IBTrACS matches. Do not train an image intensity model until a manifest with verified image path, UTC acquisition time, cyclone ID, and wind/pressure source is supplied.
 
 ### Source Details
 - **Platform**: Kaggle

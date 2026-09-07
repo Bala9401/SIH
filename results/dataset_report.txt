@@ -1,0 +1,8 @@
+Satellite Dataset: 3 classes (INSAT-3D product types), ~419 images total, JPEG/PNG format, 224x224 resize target
+  - insat3d_for_reference_ds: ~143 images (CYCLONE_DATASET subfolder)
+  - insat3d_ir_cyclone_ds: ~136 images (CYCLONE_DATASET_INFRARED subfolder)
+  - insat3d_raw_cyclone_ds: ~140 images (CYCLONE_DATASET_FINAL subfolder)
+- IBTrACS Dataset: ibtracs.NI.list.v04r00.csv, North Indian Ocean, ~60,677 observations, ~1,785 cyclones
+  - Key columns: SID, NAME, ISO_TIME, LAT, LON, WMO_WIND, WMO_PRES, BASIN, NATURE, STORM_SPEED, STORM_DIR, NEWDELHI_* fields
+  - Time range: historical cyclone records from NI basin
+- Processed data: cyclone_tracks.json, track_sequences.npz, ibtracs_metadata.json

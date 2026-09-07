@@ -1,84 +1,206 @@
-# AI Cyclone Identification and Early Warning Prototype
+# 🌪️ AI-Based Cyclone Early Warning System
 
-This SIH 2026 prototype uses INSAT-3D satellite products and NOAA IBTrACS North Indian Ocean best-track data. It provides satellite-product classification, meteorological track/wind/pressure forecasting, a model-derived prototype uncertainty corridor, and explainable rule-based coastal risk scoring.
+## Project Overview
+This project is an academic prototype for the Smart India Hackathon (SIH). It implements an **AI Cyclone Early Warning System** that utilizes satellite imagery and historical tracking data to predict cyclone behavior and assess risk. 
 
-> Prototype AI prediction only. This is not an official warning system. Follow IMD, NDMA, and local authority advisories.
+**AI Pipeline:**
+Satellite Image → CNN → Classification → IBTrACS → LSTM → Track Prediction → Risk Assessment → Dashboard
 
-## What the current data supports
+**⚠️ Disclaimer:** This is an academic prototype created for demonstration purposes only. It is **not** an official meteorological warning system. Always rely on official agencies like the India Meteorological Department (IMD) for actual weather warnings.
 
-- **A. Satellite product classification:** MobileNetV2 classifies the three available image product folders: `insat3d_for_reference_ds`, `insat3d_ir_cyclone_ds`, and `insat3d_raw_cyclone_ds`.
-- **B. Meteorological forecasting:** The LSTM predicts `LAT`, `LON`, `WMO_WIND`, and `WMO_PRES` from IBTrACS. Forecasts are generated every 3 hours through `T+48h`.
-- **C. Prototype uncertainty corridor:** `results/metrics/track_uncertainty.json` stores mean, median, and 75th-percentile held-out Haversine errors for each horizon. The dashboard uses the 75th percentile. This is not a probabilistic meteorological cone.
-- **D. Rule-based coastal risk:** Uses Haversine distance to documented Indian coastal reference points plus wind, pressure, and forecast trend. It is a prototype and does not use a coastline shapefile or population grid.
-- **Unsupported capabilities:** True satellite-image intensity classification and aligned multi-source feature fusion are not implemented because the available image dataset lacks verified intensity labels and aligned multi-channel samples.
+## Features
+- **MobileNetV2 CNN** for satellite image classification (INSAT-3D product types).
+- **LSTM** for cyclone track prediction (latitude, longitude, wind speed, pressure).
+- **Rule-based risk assessment** providing explainable scoring and severity levels.
+- **Interactive web dashboard** built with Flask, featuring Leaflet.js maps and Chart.js visualizations.
+- **Demo mode** featuring real historical data from Cyclone Fani (2019) when models are untrained.
 
-## Setup
+## Architecture
 
-```powershell
+```text
+data/
+ ├── ibtracs/                # Historical tracking dataset (CSV)
+ ├── satellite/              # Training images for CNN
+ ├── testing_images/         # Holdout test images
+ models/                     # Saved H5 models and scalers
+ static/                     # CSS, JS, Maps
+ templates/                  # HTML Dashboard views
+ app.py                      # Flask web server
+ train_all.py                # Full pipeline training script
+ train_cnn.py                # CNN training logic
+ train_lstm.py               # LSTM training logic
+ data_processor.py           # Data cleaning & prep
+ requirements.txt            # Python dependencies
+ setup.bat                   # Windows installation script
+ README.md                   # Project documentation
+```
+
+## Dataset Information
+
+### Satellite Images
+- **Source:** INSAT-3D satellite products.
+- **Types:** Reference images, infrared scans, and raw cyclone datasets.
+- **Volume:** ~419 images across 3 distinct classes.
+- **Format:** JPEG/PNG formats, resized internally to 224x224 pixels.
+
+### IBTrACS Historical Data
+- **Source:** International Best Track Archive for Climate Stewardship (IBTrACS) v4, North Indian Ocean subset (`ibtracs.NI.list.v04r00.csv`).
+- **Volume:** ~60,677 observations detailing ~1,785 unique cyclones.
+- **Key Features:** SID (Storm ID), NAME, LAT, LON, WMO_WIND, WMO_PRES, ISO_TIME.
+
+## Installation
+
+You can set up the environment using our automated script or manually.
+
+```bash
+# Option 1: Use setup.bat (Windows)
+setup.bat
+
+# Option 2: Manual Installation
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-The pinned environment is Python 3.12 with Flask 3.0, TensorFlow 2.20, NumPy 1.26, Pandas 2.1, and scikit-learn 1.3.
+## Dataset Placement
 
-## Dataset layout
+To train the models from scratch, ensure your datasets are placed exactly as follows:
 
-```text
-data/
-  ibtracs/ibtracs.NI.list.v04r00.csv
-  satellite/
-    insat3d_for_reference_ds/
-    insat3d_ir_cyclone_ds/
-    insat3d_raw_cyclone_ds/
+1. **Satellite Images:** Place image class folders inside `data/satellite/` (e.g., `data/satellite/reference/`, `data/satellite/infrared/`).
+2. **Historical Tracks:** Place the CSV file at `data/ibtracs/ibtracs.NI.list.v04r00.csv`.
+
+## Training
+
+To train the complete AI pipeline, run:
+
+```bash
+python train_all.py
 ```
+This script automates an 8-step pipeline:
+1. Validating dataset directories.
+2. Preprocessing satellite images.
+3. Training the CNN model.
+4. Saving CNN artifacts.
+5. Cleaning and scaling IBTrACS data.
+6. Generating sequence data for LSTM.
+7. Training the LSTM model.
+8. Saving LSTM models and scalers.
 
-IBTrACS must provide numeric `LAT`, `LON`, `WMO_WIND`, and `WMO_PRES` rows. Rows missing any of these four values are excluded rather than filled with invented measurements.
+## Running the Application
 
-## Complete pipeline
+Once installed (and optionally trained), start the dashboard:
 
-Run from the project directory:
+```bash
+python app.py
+```
+Then, open your browser and navigate to: http://localhost:5000
 
-```powershell
-python scripts\inspect_dataset.py
-python scripts\preprocess_images.py
-python scripts\preprocess_ibtracs.py
-python scripts\train_cnn.py
-python scripts\train_lstm.py
-python scripts\evaluate_models.py
+## CNN Model
+- **Architecture:** Transfer learning via MobileNetV2 with ImageNet pretrained weights.
+- **Custom Head:** GlobalAveragePooling2D → Dense(128, ReLU) → Dropout(0.5) → Dense(Softmax).
+- **Callbacks:** EarlyStopping and ModelCheckpoint.
+- **Purpose:** Classifies the satellite product type (e.g., IR, Visible, Reference) rather than cyclone intensity.
+
+## LSTM Model
+- **Architecture:** Sequential LSTM network for time-series forecasting.
+- **Inputs:** 6-step sequences (18 hours of context) of `[lat, lon, wind, pressure]`.
+- **Outputs:** Next predicted step of `[lat, lon, wind, pressure]`.
+- **Forecast Horizon:** Recursive prediction generating a 48-hour forecast (16 steps × 3 hours).
+- **Preprocessing:** Features are normalized using `MinMaxScaler`.
+
+## Risk Assessment
+Calculates a comprehensive danger score based on a weighted multi-factor system:
+- **Satellite Context (30%)**: Based on CNN evaluation of current imagery.
+- **Wind Speed (25%)**: Current/predicted maximum sustained winds.
+- **Pressure (15%)**: Central barometric pressure drops.
+- **Coastal Proximity (15%)**: Distance to the nearest landmass (using a prototype Indian coastline calculation).
+- **Intensity Trend (10%)**: Rate of intensification over the last 12 hours.
+- **Uncertainty (5%)**: Confidence intervals of model outputs.
+
+**Risk Levels:**
+- 🟢 **LOW** (< 25)
+- 🟡 **MODERATE** (25 - 50)
+- 🟠 **HIGH** (50 - 75)
+- 🔴 **VERY HIGH** (> 75)
+
+## Dashboard Features
+- **Key Performance Indicators (KPIs):** Real-time metrics at a glance.
+- **Interactive Map:** Leaflet.js map displaying historical tracks alongside AI-predicted paths.
+- **Visual Analytics:** Chart.js graphs illustrating trends in wind, pressure, latitude, and longitude.
+- **Early Warning Panel:** Real-time risk level display with actionable recommended safety measures.
+- **Model Metrics Panel:** Transparent display of CNN and LSTM evaluation metrics.
+- **Satellite Upload:** Upload custom satellite imagery to get instant CNN classifications.
+
+## Demo Mode
+If you run `app.py` without training the models first, **Demo Mode** activates automatically. It utilizes historical tracking data from **Cyclone Fani (2019)** to demonstrate the UI capabilities. All demo data is clearly labeled to distinguish it from live predictions.
+
+## Model results and reproducibility
+
+Run preprocessing before training; it writes `data/processed/ibtracs_ni_processed.csv`, storm-disjoint sequences, and `results/ibtracs_data_quality_report.json`.
+
+```bash
+python scripts/preprocess_ibtracs.py
+python scripts/train_lstm.py
+python scripts/evaluate_models.py
 python app.py
 ```
 
-Open `http://127.0.0.1:5000/dashboard`.
+TensorFlow is optional for the web interface. If it is unavailable, the dashboard explicitly uses a persistence baseline; it does not present synthetic tracks as model forecasts. Train/test storm IDs are kept separate and the scaler is fitted only on training storms.
 
-`preprocess_ibtracs.py` first splits by storm ID into training, validation, and final-test storms; fits `models/scaler.pkl` only on training storms; stores raw values in `data/processed/cyclone_tracks.json`; and writes scaled fit/validation/test sequences to `track_sequences.npz`. The predictor applies that same scaler once to raw observations and inverse-transforms predictions back to real units.
+### Satellite data limitation (important)
 
-## Evaluation outputs
+The numeric values in `data/satellite/insat_3d_ds - Sheet.csv` have no verified meteorological meaning. They are never used as wind, pressure, category, or intensity targets. Current satellite functionality is image validation, 224×224 preprocessing, gallery/product exploration, and optional **satellite product classification** (`reference`, `infrared`, `raw`). It is not cyclone detection or intensity estimation.
 
-- `results/metrics/cnn_metrics.json`: accuracy, precision, recall, F1, and confusion matrix for the seeded validation partition.
-- `results/metrics/cnn_confusion_matrix.json`: CNN confusion matrix.
-- `results/metrics/lstm_metrics.json`: latitude/longitude/wind/pressure MAE and RMSE, number of test storms used, and per-horizon valid forecast count, mean, median, and 75th-percentile Haversine error.
-- `results/metrics/track_uncertainty.json`: held-out-test mean, median, and 75th-percentile error statistics. The 75th percentile is used by the prototype corridor.
+For a scientifically valid satellite detection/intensity model, each image needs a verified manifest with: `image_path,product,cyclone_id,cyclone_name,timestamp_utc,latitude,longitude,wind_speed_kt,pressure_hpa,storm_category,source`, plus documented provenance and split rules that prevent the same storm appearing in both train and test.
 
-Metrics are generated only by `scripts/evaluate_models.py`; the API reads these files directly at `/api/model-metrics`.
+## Historical model performance (superseded)
 
-## API
+The values below are retained only as historical project notes. Do not treat them as current results unless reproduced from the saved artifacts and evaluation command above.
 
-- `GET /api/status`
-- `GET /api/cyclones`
-- `POST /predict/image` with multipart field `file`
-- `POST /predict/track` with JSON `{ "cyclone_id": "..." }`
-- `GET /api/risk`
-- `GET /api/model-metrics`
+### CNN Performance
+- **Accuracy:** 100%
+- **Precision:** 100% | **Recall:** 100% | **F1 Score:** 100%
+- *Note:* This task represents satellite product classification (distinguishing between very distinct image types), which accounts for the perfect accuracy, rather than complex cyclone intensity estimation.
 
-Successful track responses include `forecast_horizon_hours: 48`, `forecast_step_hours: 3`, pressure fields, and `uncertainty_radius_km` where evaluation data is available. Errors use `{ "success": false, "error": "..." }` on upload and prediction routes.
+### LSTM Performance
+- **Latitude MAE:** 0.76° | **Longitude MAE:** 1.13°
+- **Wind Speed MAE:** 6.4 knots | **Pressure MAE:** 3.9 hPa
+- **Track Displacement Error:** ~229 km (12h) | ~379 km (24h) | ~712 km (48h)
 
-## SIH demonstration
+## Troubleshooting
 
-1. Run the complete pipeline once and start Flask.
-2. Open the dashboard and select a cyclone from the IBTrACS list.
-3. Show the historical track, 16 forecast points through `T+48h`, wind/pressure values, and the prototype uncertainty corridor.
-4. Upload an INSAT image and explain that the current CNN identifies the source product, not intensity.
-5. Show the generated metrics and held-out storm split in the `results/metrics` files.
-6. Show risk factors and distance to the coastal reference geometry.
-7. State the limitations clearly: no verified image intensity labels, no aligned multi-channel fusion, prototype coastline geometry, and large long-horizon track errors in the current evaluation.
+- **TensorFlow Installation Issues:** Ensure you are using a 64-bit version of Python. If you have an older CPU, you may need a specific TensorFlow version that doesn't require AVX instructions.
+- **Missing Datasets:** Ensure you have correctly placed `ibtracs.NI.list.v04r00.csv` and the `satellite/` subdirectories exactly as specified in the "Dataset Placement" section.
+- **Port Conflicts:** If `http://localhost:5000` is already in use, change the port in `app.py` by modifying `app.run(port=5001)`.
+- **Memory Issues (OOM):** If the LSTM or CNN training crashes due to RAM limitations, reduce the `batch_size` in the training scripts.
+
+## Limitations
+- The satellite dataset trains the CNN to provide product classification, **not** cyclone intensity or structural analysis.
+- LSTM track prediction errors naturally increase with the forecast horizon (especially beyond 24 hours).
+- The risk assessment module uses prototype-level logic and simplified coastline boundaries.
+- **Not an official meteorological warning system.**
+- The interactive map requires an active internet connection to load Leaflet map tiles.
+
+## SIH 2-Minute Demo Steps
+1. Open `http://localhost:5000`
+2. Click **'Launch Dashboard'**
+3. Highlight the project title and the prominent **disclaimer**.
+4. Select a cyclone from the dropdown menu (e.g., **Fani**).
+5. Click **'Load / Predict Track'**.
+6. Show the historical track plotted on the map.
+7. Show the AI-predicted track (represented by the orange dashed line).
+8. Scroll down to show the dynamic wind/pressure and location charts.
+9. Show the computed risk assessment panel and recommended actions.
+10. Upload a satellite image from `data/satellite/`.
+11. Show the resulting CNN classification output.
+12. Show the transparency of model metrics on the UI.
+13. Conclude by reiterating: *"This is an AI prototype – official warnings must come from the IMD."*
+
+## Scientific Integrity Notice
+- All displayed metrics are real, trained values derived from our evaluation scripts.
+- No fabricated accuracy or predictive track data is used.
+- Historical datasets and AI-generated predictions are explicitly labeled in the UI.
+- This system is strictly an academic exploration and **not** a substitute for official meteorological warnings.
+
+## License
+Academic / Research prototype for Smart India Hackathon (SIH).

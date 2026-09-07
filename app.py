@@ -1,6 +1,7 @@
 import os
 import json
-from flask import Flask, render_template, request, jsonify, send_from_directory
+import uuid
+from flask import Flask, render_template, request, jsonify, send_from_directory, session
 from werkzeug.utils import secure_filename
 from PIL import Image
 
@@ -10,6 +11,7 @@ from prediction.track_predictor import CycloneTrackPredictor
 from prediction.risk_assessment import CycloneRiskAssessor
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'sih-cyclone-development-key')
 app.config['UPLOAD_FOLDER'] = os.path.join(getattr(config, 'BASE_DIR', os.getcwd()), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16 MB limit
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.webp'}
@@ -27,11 +29,6 @@ except Exception as e:
     track_predictor = None
     risk_assessor = None
 
-session_state = {
-    "current_track": [],
-    "predicted_track": []
-}
-
 @app.route('/')
 def index():
     try:
@@ -46,6 +43,28 @@ def dashboard():
     except Exception as e:
         return f"Error rendering dashboard: {str(e)}", 500
 
+# Presentation-friendly deep links.  The responsive dashboard contains these
+# panels; anchors keep one implementation of the live map and charts.
+@app.route('/track-forecast')
+def track_forecast():
+    return dashboard()
+
+@app.route('/intensity-forecast')
+def intensity_forecast():
+    return dashboard()
+
+@app.route('/risk-assessment')
+def risk_assessment_page():
+    return dashboard()
+
+@app.route('/satellite-analysis')
+def satellite_analysis():
+    return dashboard()
+
+@app.route('/data-model-information')
+def data_model_information():
+    return about()
+
 @app.route('/about')
 def about():
     try:
@@ -56,6 +75,10 @@ def about():
 @app.route('/predict/image', methods=['POST'])
 def predict_image():
     try:
+        for key in ('latest_image_analysis', 'cyclone_id', 'identified_cyclone_id',
+                    'identified_cyclone_name', 'identified_cyclone_match_confidence',
+                    'latest_track_prediction'):
+            session.pop(key, None)
         upload = request.files.get('file') or request.files.get('image')
         if upload is None:
             return jsonify({'success': False, 'error': 'No file part'}), 400
@@ -64,7 +87,8 @@ def predict_image():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'No selected file'}), 400
 
-        filename = secure_filename(file.filename)
+        original_filename = secure_filename(file.filename)
+        filename = f"{uuid.uuid4().hex}_{original_filename}"
         if os.path.splitext(filename)[1].lower() not in ALLOWED_IMAGE_EXTENSIONS:
             return jsonify({'success': False, 'error': 'Unsupported image format'}), 415
 
@@ -80,10 +104,64 @@ def predict_image():
             file.save(filepath)
             
             if image_predictor:
-                result = image_predictor.predict(filepath)
+                try:
+                    result = image_predictor.predict(filepath, original_filename)
+                except TypeError:
+                    result = image_predictor.predict(filepath)
                 result['image_url'] = f"/uploads/{filename}"
                 result['success'] = 'error' not in result
                 result['confidence_percent'] = round(result.get('confidence', 0) * 100, 1)
+                if result.get('success', True):
+                    identification = track_predictor.identify_cyclone(result) if track_predictor else {
+                        'matched': False,
+                        'reason': 'Track predictor is unavailable.'
+                    }
+                    historical = []
+                    predicted = []
+                    if identification.get('matched'):
+                        cyclone_id = identification['cyclone_id']
+                        historical = track_predictor.get_historical_track(cyclone_id)
+                        predicted = track_predictor.predict_track(historical)
+                        session['cyclone_id'] = cyclone_id
+                        session['identified_cyclone_id'] = cyclone_id
+                        session['identified_cyclone_name'] = identification.get('cyclone_name')
+                        session['identified_cyclone_match_confidence'] = identification.get('match_confidence')
+                        session['latest_track_prediction'] = {
+                            'historical': historical,
+                            'predicted': predicted,
+                        }
+                    session['latest_image_analysis'] = {
+                        'available': True,
+                        'prediction': result.get('prediction'),
+                        'class_name': result.get('class_name'),
+                        'confidence': result.get('confidence', 0),
+                        'task': result.get('task', 'satellite_product_classification'),
+                        'image_valid': result.get('image_valid', True),
+                        'image_model_available': result.get('image_model_available', False),
+                        'cyclone_detected': result.get('cyclone_detected'),
+                        'cyclone_class': result.get('cyclone_class', result.get('class_name')),
+                        'image_filename': result.get('image_filename'),
+                        'timestamp': result.get('timestamp'),
+                        'latitude': result.get('latitude'),
+                        'longitude': result.get('longitude'),
+                        'cyclone_name': None,
+                        'cyclone_name_available': False,
+                        'cyclone_detection_supported': result.get('cyclone_detection_supported', False),
+                        'intensity_classification_available': result.get('intensity_classification_available', False),
+                        'intensity_prediction_available': result.get('intensity_prediction_available', False),
+                        'risk_prediction_from_image_available': result.get('risk_prediction_from_image_available', False),
+                        'estimated_wind_speed_kt': result.get('estimated_wind_speed_kt'),
+                        'estimated_pressure_hpa': result.get('estimated_pressure_hpa'),
+                        'image_risk_score': result.get('image_risk_score'),
+                        'image_risk_level': result.get('image_risk_level', 'UNAVAILABLE'),
+                        'image_risk_basis': result.get('image_risk_basis'),
+                        'all_probabilities': result.get('all_probabilities', []),
+                        'image_url': result.get('image_url')
+                    }
+                    result['cyclone_identification'] = identification
+                    result['historical_track'] = historical
+                    result['predicted_track'] = predicted
+                result['satellite_analysis'] = session.get('latest_image_analysis')
                 return jsonify(result)
             else:
                 return jsonify({'success': False, 'error': 'Image predictor not initialized'}), 500
@@ -102,19 +180,28 @@ def uploaded_file(filename):
 def predict_track():
     try:
         data = request.json or {}
-        cyclone_id = data.get('cyclone_id')
+        cyclone_id = data.get('cyclone_id') or session.get('identified_cyclone_id')
+        if not cyclone_id:
+            return jsonify({'success': False, 'error': 'No identified cyclone is available. Analyze an image or choose a manual fallback cyclone.'}), 400
         
         if track_predictor:
             historical = track_predictor.get_historical_track(cyclone_id)
-            session_state['current_track'] = historical
-            
+            if not historical:
+                return jsonify({'success': False, 'error': 'Historical cyclone track unavailable.'}), 404
             predicted = track_predictor.predict_track(historical)
-            session_state['predicted_track'] = predicted
+            session['cyclone_id'] = cyclone_id
+            session['identified_cyclone_id'] = cyclone_id
+            cyclone_name = track_predictor.get_cyclone_name(cyclone_id)
+            session['identified_cyclone_name'] = cyclone_name
+            session['identified_cyclone_match_confidence'] = None
+            session['latest_track_prediction'] = {'historical': historical, 'predicted': predicted}
             
             return jsonify({
                 'success': True,
                 'historical': historical,
                 'predicted': predicted,
+                'cyclone_id': cyclone_id,
+                'cyclone_name': cyclone_name,
                 'demo_mode': track_predictor.demo_mode,
                 'forecast_horizon_hours': 48,
                 'forecast_step_hours': 3,
@@ -138,11 +225,9 @@ def get_cyclones():
 @app.route('/api/current-cyclone', methods=['GET'])
 def get_current_cyclone():
     try:
-        if not session_state['current_track'] and track_predictor:
-            session_state['current_track'] = track_predictor.get_historical_track()
-            
+        historical = track_predictor.get_historical_track(session.get('cyclone_id')) if track_predictor else []
         return jsonify({
-            'track': session_state['current_track']
+            'track': historical
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -150,15 +235,10 @@ def get_current_cyclone():
 @app.route('/api/predicted-track', methods=['GET'])
 def get_predicted_track():
     try:
-        if not session_state['predicted_track'] and track_predictor:
-            historical = session_state.get('current_track', [])
-            if not historical:
-                historical = track_predictor.get_historical_track()
-                session_state['current_track'] = historical
-            session_state['predicted_track'] = track_predictor.predict_track(historical)
-            
+        historical = track_predictor.get_historical_track(session.get('cyclone_id')) if track_predictor else []
+        predicted = track_predictor.predict_track(historical) if track_predictor else []
         return jsonify({
-            'track': session_state['predicted_track']
+            'track': predicted
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -168,26 +248,38 @@ def get_risk():
     try:
         if not risk_assessor:
             return jsonify({'error': 'Risk assessor not initialized'}), 500
+
+        cyclone_id = session.get('identified_cyclone_id') or session.get('cyclone_id')
+        if not cyclone_id:
+            return jsonify({'success': False, 'risk_level': 'INSUFFICIENT DATA',
+                            'error': 'Unable to identify cyclone from uploaded image. Select a cyclone as a manual fallback.'}), 400
             
-        historical = session_state.get('current_track', [])
-        predicted = session_state.get('predicted_track', [])
-        
-        if not historical and track_predictor:
-            historical = track_predictor.get_historical_track()
+        historical = track_predictor.get_historical_track(cyclone_id) if track_predictor else []
+        predicted = track_predictor.predict_track(historical) if track_predictor else []
             
         if not historical:
-            return jsonify({'error': 'No tracking data available'}), 400
+            return jsonify({'success': False, 'risk_level': 'INSUFFICIENT DATA',
+                            'error': 'No tracking data available for risk calculation.'}), 400
             
         current_pos = historical[-1]
-        wind_speed = current_pos.get('wind', 0)
+        wind_speed = current_pos.get('wind')
         pressure = current_pos.get('pressure', None)
+        satellite_analysis = session.get('latest_image_analysis')
         
         risk = risk_assessor.assess_risk(
             wind_speed=wind_speed,
             predicted_track=predicted,
             current_position=current_pos,
-            pressure=pressure
+            pressure=pressure,
+            satellite_analysis=satellite_analysis
         )
+        risk['identified_cyclone'] = {
+            'cyclone_id': cyclone_id,
+            'cyclone_name': session.get('identified_cyclone_name') or (track_predictor.get_cyclone_name(cyclone_id) if track_predictor else None),
+            'match_confidence': session.get('identified_cyclone_match_confidence'),
+        }
+        if risk['identified_cyclone']['cyclone_name']:
+            risk['reason'] = f"{risk['identified_cyclone']['cyclone_name']}: {risk.get('reason', '')}"
         
         return jsonify(risk)
     except Exception as e:

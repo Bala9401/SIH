@@ -7,23 +7,31 @@ DATA_DIR = BASE_DIR / "data"
 MODEL_DIR = BASE_DIR / "models"
 RESULTS_DIR = BASE_DIR / "results"
 
-# Demo Mode is enabled until both trained model artifacts are available.
-DEMO_MODE = not all((MODEL_DIR / name).exists() for name in (
-    "cyclone_cnn.keras", "cyclone_lstm.keras", "scaler.pkl"
-))
+# Each module advertises its own availability.  A satellite-product classifier is
+# not required for track or intensity forecasting.
+DEMO_MODE = not all((MODEL_DIR / name).exists() for name in ("cyclone_lstm.keras", "scaler.pkl"))
 
-# CNN Config
+# CNN Configuration
 IMAGE_SIZE = 224
 BATCH_SIZE = 32
 EPOCHS = 5
-NUM_CLASSES = 2 # Placeholder, will be auto-detected
+CNN_LEARNING_RATE = 0.001
+NUM_CLASSES = 3  # Auto-detected: 3 satellite product types
 
-# LSTM Config
+# LSTM Configuration
 SEQUENCE_LENGTH = 6
 LSTM_UNITS = 64
 LSTM_EPOCHS = 10
+LSTM_BATCH_SIZE = 32
 
-# Risk thresholds (wind speed in knots)
+# Future wind change thresholds in knots per observation.  These are research
+# configuration values, not IMD warning definitions.
+INTENSITY_CHANGE_THRESHOLDS = {
+    "WEAKENING": -5.0,
+    "RAPID_INTENSIFICATION": 15.0,
+}
+
+# Risk Thresholds (wind speed in knots)
 RISK_THRESHOLDS = {
     'LOW': 34,
     'MODERATE': 47,
@@ -31,7 +39,7 @@ RISK_THRESHOLDS = {
     'VERY_HIGH': 90
 }
 
-# Demo cyclone data (Cyclone Fani 2019 - North Indian Ocean)
+# Demo cyclone data: Cyclone Fani 2019 - North Indian Ocean (12 data points)
 DEMO_CYCLONE_DATA = [
     {"lat": 5.2, "lon": 88.5, "wind": 25, "pressure": 1004, "time": "2019-04-26T00:00:00Z"},
     {"lat": 5.7, "lon": 88.3, "wind": 30, "pressure": 1000, "time": "2019-04-26T06:00:00Z"},
@@ -44,14 +52,17 @@ DEMO_CYCLONE_DATA = [
     {"lat": 13.9, "lon": 85.6, "wind": 105, "pressure": 962, "time": "2019-05-01T00:00:00Z"},
     {"lat": 15.6, "lon": 85.1, "wind": 115, "pressure": 954, "time": "2019-05-02T00:00:00Z"},
     {"lat": 17.6, "lon": 84.8, "wind": 115, "pressure": 946, "time": "2019-05-02T12:00:00Z"},
-    {"lat": 19.6, "lon": 85.7, "wind": 100, "pressure": 962, "time": "2019-05-03T03:00:00Z"}, # Landfall
+    {"lat": 19.6, "lon": 85.7, "wind": 100, "pressure": 962, "time": "2019-05-03T03:00:00Z"},  # Landfall
 ]
 
-# Flask Config
+# Flask Configuration
 FLASK_HOST = '0.0.0.0'
 FLASK_PORT = 5000
 FLASK_DEBUG = True
 
-DISCLAIMER_TEXT = "Prototype AI prediction only. Not an official meteorological warning system."
+# Disclaimer
+DISCLAIMER_TEXT = "This system is an AI research/academic prototype. AI predictions are not official meteorological warnings. Users should follow official information from authorized weather and disaster-management agencies."
 DISCLAIMER = DISCLAIMER_TEXT
-CLASS_NAMES = ["No_Cyclone", "Cyclone"] # Placeholder
+
+# Class names (auto-detected from satellite dataset)
+CLASS_NAMES = ["insat3d_for_reference_ds", "insat3d_ir_cyclone_ds", "insat3d_raw_cyclone_ds"]

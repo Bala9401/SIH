@@ -3,53 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Cyclone EWS | Home</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>AI Cyclone Early Warning System - Home</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .hero-section {
-            min-height: 80vh;
-            display: flex;
-            align-items: center;
-            background: radial-gradient(circle at center, rgba(0,212,255,0.1) 0%, transparent 70%);
-            position: relative;
-            overflow: hidden;
-        }
-        .hero-title {
-            font-size: 4rem;
-            font-weight: 800;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
-        }
-        .feature-card {
-            padding: 30px;
-            height: 100%;
-            text-align: center;
-            transition: transform 0.3s ease;
-        }
-        .feature-icon {
-            font-size: 3rem;
-            color: var(--accent-cyan);
-            margin-bottom: 20px;
-        }
-    </style>
 </head>
 <body>
+
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-glass sticky-top">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="fa-solid fa-hurricane me-2 text-info"></i>AI Cyclone EWS
+    <nav class="navbar navbar-expand-lg navbar-dark bg-darker border-bottom border-secondary">
+        <div class="container px-4">
+            <a class="navbar-brand brand-font d-flex align-items-center" href="/">
+                <i class="fas fa-hurricane text-cyan me-2 fs-3"></i>
+                AI-CEWS
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link active" href="/">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
@@ -58,57 +39,78 @@
         </div>
     </nav>
 
-    <!-- Hero -->
-    <section class="hero-section text-center">
-        <div class="container position-relative z-2">
-            <h1 class="hero-title">AI-Based Cyclone<br>Early Warning System</h1>
-            <p class="lead text-muted mb-5 mx-auto" style="max-width: 700px;">
-                Advanced artificial intelligence for cyclone identification, classification, track prediction, and real-time risk assessment.
-            </p>
-            <a href="/dashboard" class="btn btn-gradient btn-lg px-5 py-3 rounded-pill">
-                Launch Dashboard <i class="fa-solid fa-arrow-right ms-2"></i>
-            </a>
-        </div>
-    </section>
-
-    <!-- Features -->
-    <section class="container py-5 mb-5">
-        <h2 class="text-center mb-5">System Capabilities</h2>
-        <div class="row g-4">
-            <div class="col-md-3">
-                <div class="glass-card feature-card">
-                    <i class="fa-solid fa-satellite feature-icon"></i>
-                    <h4>Satellite Analysis</h4>
-                    <p class="text-muted small">Deep Learning (CNN) models analyze INSAT-3D imagery to classify cyclone intensity.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="glass-card feature-card">
-                    <i class="fa-solid fa-route feature-icon"></i>
-                    <h4>Track Prediction</h4>
-                    <p class="text-muted small">LSTM networks predict future trajectory (Lat/Lon) up to 72 hours in advance.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="glass-card feature-card">
-                    <i class="fa-solid fa-triangle-exclamation feature-icon"></i>
-                    <h4>Risk Assessment</h4>
-                    <p class="text-muted small">Automated risk level calculation based on proximity to land and predicted intensity.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="glass-card feature-card">
-                    <i class="fa-solid fa-map-location-dot feature-icon"></i>
-                    <h4>Interactive Map</h4>
-                    <p class="text-muted small">Real-time geospatial visualization of historical and predicted cyclone tracks.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="text-center py-4 border-top" style="border-color: var(--border-color)!important;">
+    <!-- Hero Section -->
+    <section class="hero-section">
         <div class="container">
-            <p class="text-muted small mb-0">Developed for Smart India Hackathon. Prototype AI prediction only.</p>
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <span class="badge bg-primary bg-opacity-25 text-primary border border-primary rounded-pill px-3 py-2 mb-4 font-monospace">
+                        SIH PROTOTYPE
+                    </span>
+                    <h1 class="hero-title brand-font">AI-Based Cyclone Early Warning System</h1>
+                    <p class="lead text-muted mb-5 mx-auto" style="max-width: 800px;">
+                        A North Indian Ocean research platform for historical-track forecasting, explainable risk assessment, and experimental INSAT-3D satellite-product analysis.
+                    </p>
+                    <a href="/dashboard" class="btn btn-gradient btn-lg px-5 py-3 fw-bold rounded-pill shadow">
+                        <i class="fas fa-rocket me-2"></i> Launch Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="brand-font">System Capabilities</h2>
+                <p class="text-muted">Comprehensive pipeline for cyclone monitoring</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="glass-card feature-card text-center">
+                        <i class="fas fa-satellite feature-icon"></i>
+                        <h4 class="brand-font mb-3">Satellite Analysis</h4>
+                        <p class="text-muted small mb-0">Previews INSAT-3D products and, when trained, classifies product type only. The supplied images have no verified storm or intensity labels.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="glass-card feature-card text-center">
+                        <i class="fas fa-route feature-icon text-primary"></i>
+                        <h4 class="brand-font mb-3">Track Prediction</h4>
+                        <p class="text-muted small mb-0">Employs LSTM sequential modeling to forecast cyclone track (Lat/Lon) and intensity up to 48 hours ahead.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="glass-card feature-card text-center">
+                        <i class="fas fa-triangle-exclamation feature-icon text-warning"></i>
+                        <h4 class="brand-font mb-3">Risk Assessment</h4>
+                        <p class="text-muted small mb-0">Rule-based expert system evaluates wind, pressure, and trajectory to generate actionable risk scores.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="glass-card feature-card text-center">
+                        <i class="fas fa-map-location-dot feature-icon text-success"></i>
+                        <h4 class="brand-font mb-3">Interactive Map</h4>
+                        <p class="text-muted small mb-0">Real-time geospatial visualization with Leaflet.js rendering observed and forecasted cyclone paths.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-darker border-top border-secondary py-4 mt-5">
+        <div class="container text-center">
+            <p class="text-muted small mb-2">Developed for Smart India Hackathon (SIH)</p>
+            <p class="text-secondary" style="font-size: 0.75rem;">
+                Disclaimer: This AI system is a prototype build for demonstration purposes. 
+                Do not use for actual life-safety decisions. Always refer to official IMD bulletins.
+            </p>
         </div>
     </footer>
 
