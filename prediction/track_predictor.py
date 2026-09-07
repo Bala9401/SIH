@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+from datetime import datetime, timezone
 
 try:
     from tensorflow.keras.models import load_model
@@ -48,6 +49,31 @@ class CycloneTrackPredictor:
             return getattr(config, 'DEMO_CYCLONE_DATA', [])
         return []
 
+    @staticmethod
+    def _parse_track_time(value):
+        if not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            return None
+
+    def get_track_through_observation(self, cyclone_id, timestamp):
+        """Return the verified track context ending at the matched observation."""
+        historical = self.get_historical_track(cyclone_id)
+        target = self._parse_track_time(timestamp)
+        if target is None:
+            return historical
+        eligible = [
+            point for point in historical
+            if (point_time := self._parse_track_time(point.get('time'))) is not None
+            and point_time <= target
+        ]
+        return eligible or historical
+
     def _load_tracks(self):
         processed_data_path = os.path.join(config.DATA_DIR, "processed", "cyclone_tracks.json")
         if not os.path.exists(processed_data_path):
@@ -62,13 +88,9 @@ class CycloneTrackPredictor:
             if mapping_result['cyclone_id'] not in tracks:
                 return {"matched": False, "reason": "Verified mapping points to an unavailable IBTrACS track."}
             return mapping_result
-        # A satellite product image cannot be assigned to an IBTrACS storm from
-        # timestamp/position proximity alone.  That would make the subsequent
-        # LSTM forecast look image-derived when it is not.  The UI therefore
-        # offers the user a clearly labelled manual storm selection instead.
         return {
             "matched": False,
-            "reason": "No verified image-to-cyclone mapping. LSTM track forecast requires a verified cyclone identity and historical sequence; use Advanced / Manual Analysis for a historical storm."
+            "reason": "Uploaded image is not a verified dataset image. Automatic cyclone identification is unavailable for this image."
         }
 
     def get_available_cyclones(self):

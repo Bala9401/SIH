@@ -1,0 +1,55 @@
+Demo risk sample report
+========================
+
+Method
+------
+Every verified mapping row was checked against the source image SHA-256. The existing CycloneTrackPredictor LSTM and CycloneRiskAssessor were used without modifying model weights, thresholds, mapping data, IBTrACS data, or risk calculations. Selected images were then uploaded through the real /api/analyze application pipeline.
+
+LOW
+---
+Image: LOW_RISK.jpg
+Original image: data/satellite/insat3d_for_reference_ds/CYCLONE_DATASET/45(2).jpeg
+Cyclone: ROANU
+Cyclone ID: 2016138N10081
+SHA-256: 253208f3c12db34c7aa125fc3c0d0c13306cdac70b720b4ef85c0a4f826e9a3c
+Verified mapping timestamp: 2016-05-19 00:00:00
+Current IBTrACS track observation used by risk engine: 2016-05-22T00:00:00+00:00
+Latitude: 24.5
+Longitude: 94.7
+Wind: 20.0
+Pressure: 996.0 hPa
+Historical observations: 41
+LSTM prediction points: 16 (48 hours)
+Uncertainty points: 16
+Calculated risk score: 20.5
+Calculated risk level: LOW
+Major risk factors: wind 0/100; pressure 23.3/100; proximity 16.6/100; intensity trend 50/100; uncertainty 100/100; satellite context 15/100.
+Application upload result: HTTP 200, SHA-256 match, cyclone ROANU, risk LOW 20.5.
+
+MODERATE
+--------
+Image: MODERATE_RISK.jpg
+Original image: data/satellite/insat3d_for_reference_ds/CYCLONE_DATASET/40(1).jpeg
+Cyclone: KYANT
+Cyclone ID: 2016295N13089
+SHA-256: c6243fa45ebd41a8776766425b1f9d2e1b166982f60c27f63073d91c8d0156da
+Verified mapping timestamp: 2016-10-26 03:00:00
+Current IBTrACS track observation used by risk engine: 2016-10-29T06:00:00+00:00
+Latitude: 14.0
+Longitude: 81.0
+Wind: 20.0
+Pressure: 1007.0 hPa
+Historical observations: 67
+LSTM prediction points: 16 (48 hours)
+Uncertainty points: 16
+Calculated risk score: 26.9
+Calculated risk level: MODERATE
+Major risk factors: wind 0/100; pressure 5.0/100; proximity 77.6/100; intensity trend 50/100; uncertainty 100/100; satellite context 15/100.
+Application upload result: HTTP 200, SHA-256 match, cyclone KYANT, risk MODERATE 26.9.
+
+Unavailable categories
+----------------------
+No verified dataset observation currently produces HIGH under the existing risk engine.
+No verified dataset observation currently produces VERY HIGH under the existing risk engine.
+
+The dashboard four-level Demo Scenarios section was not added because HIGH and VERY HIGH could not be demonstrated from real verified observations without changing the risk engine or fabricating data.

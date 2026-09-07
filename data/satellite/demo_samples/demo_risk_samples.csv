@@ -1,0 +1,3 @@
+risk_level,image_name,sha256,cyclone_id,cyclone_name,timestamp,latitude,longitude,wind_speed,pressure,risk_score
+LOW,LOW_RISK.jpg,253208f3c12db34c7aa125fc3c0d0c13306cdac70b720b4ef85c0a4f826e9a3c,2016138N10081,ROANU,2016-05-19 00:00:00,24.5,94.7,20.0,996.0,20.5
+MODERATE,MODERATE_RISK.jpg,c6243fa45ebd41a8776766425b1f9d2e1b166982f60c27f63073d91c8d0156da,2016295N13089,KYANT,2016-10-26 03:00:00,14.0,81.0,20.0,1007.0,26.9

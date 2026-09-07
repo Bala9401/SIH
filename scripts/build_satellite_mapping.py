@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 OUTPUT_COLUMNS = [
-    "image_name", "cyclone_id", "cyclone_name", "timestamp", "latitude",
+    "image_name", "sha256", "cyclone_id", "cyclone_name", "timestamp", "latitude",
     "longitude", "wind_speed", "pressure", "match_method",
     "match_confidence", "source",
 ]
@@ -46,6 +47,17 @@ def read_csv(path: Path) -> list[dict[str, str]]:
 def image_exists(root: Path, image_path: str) -> bool:
     candidate = Path(image_path)
     return (root / candidate).is_file() or (root / "data" / "satellite" / candidate).is_file()
+
+
+def image_sha256(root: Path, image_path: str) -> str:
+    candidate = root / Path(image_path)
+    if not candidate.is_file():
+        candidate = root / "data" / "satellite" / Path(image_path)
+    digest = hashlib.sha256()
+    with candidate.open("rb") as image_file:
+        for chunk in iter(lambda: image_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def build_mapping(project_root: Path, manifest_path: Path | None = None,
@@ -81,6 +93,7 @@ def build_mapping(project_root: Path, manifest_path: Path | None = None,
             continue
         mapping.append({
             "image_name": Path(row["image_path"]).name,
+            "sha256": image_sha256(project_root, row["image_path"]),
             "cyclone_id": row["cyclone_id"],
             "cyclone_name": row["cyclone_name"],
             "timestamp": timestamp.isoformat().replace("+00:00", "Z"),

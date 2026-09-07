@@ -1,16 +1,16 @@
 let selectedFile = null;
 let map = null;
-let layers = [];
+let trackLayerGroup = null;
+let tileLayer = null;
+let lastTrackKey = '';
 let charts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sidebar-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
     setupUpload();
-    setupManualMode();
     initMap();
     loadStatus();
     loadMetrics();
-    loadCyclones();
     renderHistory();
 });
 
@@ -61,7 +61,7 @@ async function analyze() {
     button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ANALYZING';
     setStage('ingest', 'PROCESSING');
     setStage('cnn', 'PROCESSING');
-    setText('analysis-title', 'Analysis in progress');
+    setText('analysis-title', 'Analyzing satellite image...');
     setText('analysis-state', 'PROCESSING');
     const form = new FormData();
     form.append('file', selectedFile);
@@ -92,12 +92,12 @@ function renderAnalysis(data) {
     setText('analysis-state', 'COMPLETE');
     setText('last-analysis', new Date(data.timestamp).toLocaleTimeString());
     setText('kpi-cyclone', cyclone.detected ? (cyclone.name || cyclone.id || 'DETECTED') : 'UNLINKED');
-    setText('kpi-cyclone-detail', cyclone.detected ? 'Verified image mapping' : (cyclone.reason || 'No verified storm link'));
+    setText('kpi-cyclone-detail', cyclone.detected ? `${cyclone.id || 'Verified ID'} | match ${percent(cyclone.match_confidence)}` : 'Image received, but it is not a verified dataset observation.');
     setText('kpi-confidence', percent(cnn.confidence));
     setText('kpi-class', cnn.class_name || 'N/A');
     setText('kpi-wind', value(cyclone.wind, ' kt'));
     setText('kpi-pressure', value(cyclone.pressure, ' hPa'));
-    setText('summary-cnn', 'Satellite product classified successfully.');
+    setText('summary-cnn', 'Satellite Image Classification completed successfully.');
     setText('summary-identification', cyclone.detected ? 'Verified image-to-cyclone mapping.' : 'No verified image-to-cyclone mapping.');
     setText('summary-track', track.available ? 'LSTM forecast generated from historical sequence.' : 'Requires verified cyclone identity and historical sequence.');
     setText('summary-risk', risk.available === false ? 'Requires verified current cyclone observations.' : 'Assessment calculated from valid observations.');
@@ -135,9 +135,40 @@ function renderProbabilities(cnn) {
 }
 
 function initMap() {
-    map = L.map('cyclone-map', { zoomControl: false }).setView([15, 85], 4);
+    if (map) return;
+    map = createMap('cyclone-map', [85, 15], 4);
+    trackLayerGroup = L.layerGroup().addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+    tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19, updateWhenIdle: true, keepBuffer: 1 }).addTo(map);
+    tileLayer.on('loading', () => setMapMessage('Loading map...', 'loading'));
+    tileLayer.on('load', () => setMapMessage('', 'ready'));
+    tileLayer.on('tileerror', () => setMapMessage('Map tiles could not be loaded. Check your internet connection.', 'error'));
+    requestAnimationFrame(() => invalidateMapSize());
+}
+
+function createMap(containerId, center, zoom) {
+    const [longitude, latitude] = center;
+    return L.map(containerId, { zoomControl: false }).setView([latitude, longitude], zoom);
+}
+
+function invalidateMapSize() {
+    if (map) map.invalidateSize({ pan: false, debounceMoveend: true });
+}
+
+function setMapMessage(message, state) {
+    const element = document.getElementById('map-message');
+    if (!element) return;
+    element.textContent = message;
+    element.classList.toggle('hidden', !message);
+    element.dataset.state = state;
+}
+
+function trackPointKey(point) { return `${point.lat},${point.lon ?? point.lng},${point.time || point.time_offset || ''}`; }
+
+function importantHistoricalPoints(points) {
+    if (points.length <= 12) return points;
+    const step = Math.ceil((points.length - 1) / 10);
+    return points.filter((point, index) => index === points.length - 1 || index % step === 0);
 }
 
 function renderTrack(track) {
@@ -147,24 +178,51 @@ function renderTrack(track) {
     if (!track.available) {
         empty.classList.remove('hidden');
         content.classList.add('hidden');
+        if (trackLayerGroup) trackLayerGroup.clearLayers();
+        lastTrackKey = '';
         setText('track-reason', track.reason || 'No verified track is available for this image.');
         return;
     }
     empty.classList.add('hidden');
     content.classList.remove('hidden');
-    layers.forEach(layer => map.removeLayer(layer));
-    layers = [];
+    invalidateMapSize();
     const historical = track.historical || [];
     const predicted = track.predicted || [];
     const observed = historical.map(point => [point.lat, point.lon]);
     const future = predicted.map(point => [point.lat, point.lon]);
-    layers.push(L.polyline(observed, { color: '#38bdf8', weight: 3 }).addTo(map));
-    layers.push(L.polyline([observed[observed.length - 1], ...future], { color: '#f59e0b', weight: 3, dashArray: '8 8' }).addTo(map));
-    historical.forEach((point, index) => layers.push(L.circleMarker([point.lat, point.lon], { radius: index === historical.length - 1 ? 7 : 3, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 1 }).addTo(map)));
-    predicted.forEach(point => layers.push(L.circleMarker([point.lat, point.lon], { radius: 4, color: '#f59e0b', fillColor: '#101827', fillOpacity: 1 }).addTo(map)));
-    map.fitBounds(L.latLngBounds([...observed, ...future]), { padding: [30, 30] });
+    const trackKey = [...historical, ...predicted].map(trackPointKey).join('|');
+    if (trackKey === lastTrackKey) return;
+    lastTrackKey = trackKey;
+    trackLayerGroup.clearLayers();
+    if (observed.length > 1) trackLayerGroup.addLayer(L.polyline(observed, { color: '#38bdf8', weight: 3 }));
+    if (future.length) trackLayerGroup.addLayer(L.polyline(observed.length ? [observed[observed.length - 1], ...future] : future, { color: '#f59e0b', weight: 3, dashArray: '8 8' }));
+    importantHistoricalPoints(historical).forEach(point => {
+        const marker = L.circleMarker([point.lat, point.lon], { radius: 4, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 1 });
+        marker.bindPopup(`Latitude: ${point.lat}<br>Longitude: ${point.lon}<br>Timestamp: ${escapeHtml(point.time || 'Unavailable')}`);
+        trackLayerGroup.addLayer(marker);
+    });
+    if (historical.length) {
+        const current = historical[historical.length - 1];
+        const marker = L.circleMarker([current.lat, current.lon], { radius: 9, color: riskColor(), fillColor: '#ef4444', fillOpacity: 1, weight: 3, className: 'current-cyclone-marker' });
+        marker.bindPopup('Current cyclone position');
+        trackLayerGroup.addLayer(marker);
+    }
+    predicted.filter(point => [3, 6, 12, 24, 36, 48].includes(Number(point.time_offset))).forEach(point => {
+        const marker = L.circleMarker([point.lat, point.lon], { radius: 4, color: '#f59e0b', fillColor: '#101827', fillOpacity: 1 });
+        marker.bindPopup(`Predicted Position<br>+${point.time_offset}h`);
+        trackLayerGroup.addLayer(marker);
+    });
+    map.fitBounds(L.latLngBounds([...observed, ...future]), { padding: [30, 30], maxZoom: 7 });
     renderForecastCards(predicted);
     renderCharts(historical, predicted);
+}
+
+function riskColor() {
+    const level = document.getElementById('risk-level')?.textContent || '';
+    if (level.includes('VERY HIGH')) return '#ef4444';
+    if (level.includes('HIGH')) return '#f97316';
+    if (level.includes('MODERATE')) return '#facc15';
+    return '#22c55e';
 }
 
 function renderForecastCards(points) {
@@ -225,31 +283,6 @@ async function loadMetrics() {
         setText('metric-accuracy', percent(cnn.accuracy)); setText('metric-precision', percent(cnn.precision)); setText('metric-recall', percent(cnn.recall)); setText('metric-f1', percent(cnn.f1_score));
         setText('metric-lat', value(lstm.latitude_mae, ' deg')); setText('metric-lon', value(lstm.longitude_mae, ' deg')); setText('metric-wind', value(lstm.wind_mae, ' kt')); setText('metric-pressure', value(lstm.pressure_mae, ' hPa'));
     } catch { /* unavailable values remain visible */ }
-}
-
-async function loadCyclones() {
-    const select = document.getElementById('cycloneSelect');
-    try {
-        const cyclones = await fetch('/api/cyclones').then(response => response.json());
-        cyclones.forEach(cyclone => { const option = document.createElement('option'); option.value = cyclone.id; option.textContent = cyclone.name || cyclone.id; select.appendChild(option); });
-    } catch { select.disabled = true; }
-}
-
-function setupManualMode() {
-    document.getElementById('manual-track').addEventListener('click', async () => {
-        const cycloneId = document.getElementById('cycloneSelect').value;
-        if (!cycloneId) return notify('Select a historical cyclone first.');
-        const response = await fetch('/predict/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cyclone_id: cycloneId }) });
-        const data = await response.json();
-        if (!response.ok) return notify(data.error || 'Manual analysis failed.');
-        renderTrack({ available: data.predicted.length > 0, historical: data.historical, predicted: data.predicted });
-        setText('track-method', data.demo_mode ? 'BASELINE' : 'LSTM MODEL');
-        setText('prov-cnn', 'N/A - manual analysis');
-        setText('prov-mapping', 'N/A - manual analysis');
-        setText('prov-ibtracs', 'data/processed/ibtracs_ni_processed.csv');
-        setText('prov-confidence', 'N/A - manual analysis');
-        setText('prov-forecast', data.demo_mode ? 'BASELINE' : 'LSTM MODEL using historical IBTrACS observations');
-    });
 }
 
 function setStage(stage, state) { const element = document.querySelector(`[data-stage="${stage}"]`); if (element) { element.className = `pipeline-step ${state.toLowerCase()}`; element.querySelector('small').textContent = state; } }

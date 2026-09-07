@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import os
 import tempfile
 import unittest
@@ -12,28 +13,29 @@ class CycloneMatcherTests(unittest.TestCase):
     def write_mapping(self, rows):
         handle = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="")
         self.addCleanup(lambda: os.unlink(handle.name))
-        writer = csv.DictWriter(handle, fieldnames=sorted(CycloneMatcher.REQUIRED_COLUMNS))
+        writer = csv.DictWriter(handle, fieldnames=[
+            "image_name", "sha256", "cyclone_id", "cyclone_name", "match_method", "match_confidence",
+        ])
         writer.writeheader()
         writer.writerows(rows)
         handle.close()
         return handle.name
 
-    def test_exact_image_mapping_is_verified(self):
+    def test_sha256_mapping_is_verified(self):
         path = self.write_mapping([{
-            "image_name": "fani_001.jpg", "cyclone_id": "FANI-ID", "cyclone_name": "FANI",
-            "timestamp": "2019-05-02T06:00:00", "latitude": "15.6", "longitude": "85.1",
-            "wind_speed": "62", "pressure": "954", "source": "verified_test_source",
+            "image_name": "fani_001.jpg", "sha256": "a" * 64, "cyclone_id": "FANI-ID", "cyclone_name": "FANI",
+            "match_method": "verified", "match_confidence": "1.0",
         }])
-        result = CycloneMatcher(path).match({"image_filename": "fani_001.jpg"})
+        result = CycloneMatcher(path).match({"sha256": "A" * 64})
         self.assertTrue(result["matched"])
         self.assertEqual(result["cyclone_id"], "FANI-ID")
-        self.assertEqual(result["method"], "verified_mapping_image_name")
+        self.assertEqual(result["method"], "sha256")
 
     def test_unmapped_image_is_not_assigned(self):
         path = self.write_mapping([])
-        result = CycloneMatcher(path).match({"image_filename": "unknown.jpg"})
+        result = CycloneMatcher(path).match({"sha256": "b" * 64})
         self.assertFalse(result["matched"])
-        self.assertIn("No verified", result["reason"])
+        self.assertIn("not a verified dataset image", result["reason"])
 
     def test_track_predictor_requires_verified_image_mapping(self):
         predictor = CycloneTrackPredictor()
@@ -46,7 +48,16 @@ class CycloneMatcherTests(unittest.TestCase):
                 "longitude": 85.0,
             })
         self.assertFalse(result["matched"])
-        self.assertIn("manual", result["reason"].lower())
+        self.assertIn("not a verified dataset image", result["reason"])
+
+    def test_two_hashes_select_different_cyclones(self):
+        path = self.write_mapping([
+            {"image_name": "a.jpg", "sha256": "a" * 64, "cyclone_id": "A", "cyclone_name": "ALPHA", "match_method": "verified", "match_confidence": "1.0"},
+            {"image_name": "b.jpg", "sha256": "b" * 64, "cyclone_id": "B", "cyclone_name": "BETA", "match_method": "verified", "match_confidence": "1.0"},
+        ])
+        matcher = CycloneMatcher(path)
+        self.assertEqual(matcher.match({"sha256": "a" * 64})["cyclone_id"], "A")
+        self.assertEqual(matcher.match({"sha256": "b" * 64})["cyclone_id"], "B")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 import csv
-import math
+import hashlib
 import os
-from datetime import datetime
 
 import config
 
@@ -10,9 +9,8 @@ class CycloneMatcher:
     """Resolve uploaded image metadata through a verified mapping index only."""
 
     REQUIRED_COLUMNS = {
-        "image_name", "cyclone_id", "cyclone_name", "timestamp",
-        "latitude", "longitude", "wind_speed", "pressure", "match_method",
-        "match_confidence", "source",
+        "image_name", "sha256", "cyclone_id", "cyclone_name",
+        "match_method", "match_confidence",
     }
 
     def __init__(self, mapping_path=None):
@@ -25,64 +23,33 @@ class CycloneMatcher:
             return []
         with open(self.mapping_path, newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
-            if not self.REQUIRED_COLUMNS.issubset(set(reader.fieldnames or [])):
+            fields = set(reader.fieldnames or [])
+            if not self.REQUIRED_COLUMNS.issubset(fields):
                 return []
-            return [row for row in reader if row.get("image_name") and row.get("cyclone_id")]
+            return [row for row in reader if row.get("sha256") and row.get("cyclone_id")]
 
     @staticmethod
-    def _same_image(left, right):
-        return os.path.basename(str(left or "")).casefold() == os.path.basename(str(right or "")).casefold()
-
-    @staticmethod
-    def _parse_time(value):
-        if not value:
-            return None
-        try:
-            return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
-        except ValueError:
-            try:
-                return datetime.strptime(str(value), "%Y:%m:%d %H:%M:%S")
-            except ValueError:
-                return None
+    def sha256_file(image_path):
+        digest = hashlib.sha256()
+        with open(image_path, "rb") as image_file:
+            for chunk in iter(lambda: image_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def match(self, image_analysis, tracks=None):
         image_analysis = image_analysis or {}
         rows = self._rows()
-        image_name = image_analysis.get("image_filename")
-
-        exact = [row for row in rows if self._same_image(row["image_name"], image_name)]
+        image_hash = str(image_analysis.get("sha256") or "").strip().lower()
+        exact = [row for row in rows if row.get("sha256", "").strip().lower() == image_hash]
         if len(exact) == 1:
             row = exact[0]
-            return self._result(row, 1.0, "verified_mapping_image_name")
+            return self._result(row, 1.0, "sha256")
         if len(exact) > 1:
-            return {"matched": False, "reason": "Multiple verified mappings exist for this image name."}
-
-        target_time = self._parse_time(image_analysis.get("timestamp"))
-        latitude = image_analysis.get("latitude")
-        longitude = image_analysis.get("longitude")
-        if not rows or target_time is None or latitude is None or longitude is None:
-            return {"matched": False, "reason": "No verified satellite-image-to-cyclone mapping available."}
-
-        candidates = []
-        for row in rows:
-            row_time = self._parse_time(row.get("timestamp"))
-            try:
-                row_lat = float(row["latitude"])
-                row_lon = float(row["longitude"])
-            except (TypeError, ValueError):
-                continue
-            if row_time is None:
-                continue
-            time_hours = abs((row_time - target_time).total_seconds()) / 3600
-            distance_km = math.hypot(row_lat - float(latitude), row_lon - float(longitude)) * 111
-            if time_hours <= 3 and distance_km <= 300:
-                candidates.append((time_hours, distance_km, row))
-        if not candidates:
-            return {"matched": False, "reason": "No verified mapping met the 3-hour and 300-km thresholds."}
-
-        time_hours, distance_km, row = min(candidates, key=lambda item: (item[0], item[1], item[2]["cyclone_id"]))
-        confidence = round(max(0.0, 1.0 - (time_hours / 3 + distance_km / 300) / 2), 3)
-        return self._result(row, confidence, "verified_mapping_timestamp_position", time_hours, distance_km)
+            return {"matched": False, "reason": "Multiple verified mappings exist for this SHA-256 hash."}
+        return {
+            "matched": False,
+            "reason": "Uploaded image is not a verified dataset image. Automatic cyclone identification is unavailable for this image.",
+        }
 
     @staticmethod
     def _result(row, confidence, method, time_hours=None, distance_km=None):
@@ -90,15 +57,28 @@ class CycloneMatcher:
             "matched": True,
             "cyclone_id": row["cyclone_id"],
             "cyclone_name": row.get("cyclone_name") or None,
-            "timestamp": row.get("timestamp") or None,
-            "latitude": float(row["latitude"]) if row.get("latitude") else None,
-            "longitude": float(row["longitude"]) if row.get("longitude") else None,
+            "timestamp": row.get("ibtracs_timestamp") or row.get("image_timestamp") or None,
+            "latitude": CycloneMatcher._number(row.get("ibtracs_latitude") or row.get("image_latitude")),
+            "longitude": CycloneMatcher._number(row.get("ibtracs_longitude") or row.get("image_longitude")),
             "match_confidence": confidence,
             "method": method,
             "source": row.get("source") or None,
+            "match_method": row.get("match_method") or method,
+            "sha256": row.get("sha256"),
+            "wind_speed_kmh": CycloneMatcher._knots_to_kmh(row.get("ibtracs_wind_knots")),
+            "pressure_hpa": CycloneMatcher._number(row.get("ibtracs_pressure_hpa")),
+            "intensity": row.get("intensity") or None,
         }
-        if time_hours is not None:
-            result["time_delta_hours"] = round(time_hours, 2)
-        if distance_km is not None:
-            result["distance_km"] = round(distance_km, 1)
         return result
+
+    @staticmethod
+    def _number(value):
+        try:
+            return float(value) if value not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _knots_to_kmh(value):
+        knots = CycloneMatcher._number(value)
+        return round(knots * 1.852, 2) if knots is not None else None

@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,7 +33,8 @@ class SatelliteMappingTests(unittest.TestCase):
 
     def test_complete_manifest_requires_exact_ibtracs_observation(self):
         root = self.make_project()
-        (root / "data" / "satellite" / "storm.jpg").touch()
+        image_path = root / "data" / "satellite" / "storm.jpg"
+        image_path.write_bytes(b"verified image bytes")
         manifest_fields = ["image_path", "product", "cyclone_id", "cyclone_name", "timestamp_utc", "latitude", "longitude", "wind_speed_kt", "pressure_hpa", "storm_category", "source"]
         self.write_csv(root / "data" / "satellite_intensity_manifest.csv", manifest_fields, [{
             "image_path": "data/satellite/storm.jpg", "product": "infrared", "cyclone_id": "SID-1", "cyclone_name": "TEST",
@@ -47,7 +49,8 @@ class SatelliteMappingTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["match_method"], "verified_manifest_ibtracs_exact_timestamp")
         self.assertEqual(rows[0]["source"].split(";")[0], "verified-test-manifest")
-        match = CycloneMatcher(root / "data" / "satellite" / "satellite_cyclone_mapping.csv").match({"image_filename": "storm.jpg"})
+        image_hash = hashlib.sha256(image_path.read_bytes()).hexdigest()
+        match = CycloneMatcher(root / "data" / "satellite" / "satellite_cyclone_mapping.csv").match({"sha256": image_hash})
         self.assertTrue(match["matched"])
         self.assertEqual(match["cyclone_id"], "SID-1")
 

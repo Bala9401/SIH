@@ -185,16 +185,13 @@ The values below are retained only as historical project notes. Do not treat the
 1. Open `http://localhost:5000`
 2. Click **'Launch Dashboard'**
 3. Highlight the project title and the prominent **disclaimer**.
-4. Select a cyclone from the dropdown menu (e.g., **Fani**).
-5. Click **'Load / Predict Track'**.
-6. Show the historical track plotted on the map.
-7. Show the AI-predicted track (represented by the orange dashed line).
-8. Scroll down to show the dynamic wind/pressure and location charts.
-9. Show the computed risk assessment panel and recommended actions.
-10. Upload a satellite image from `data/satellite/`.
-11. Show the resulting CNN classification output.
-12. Show the transparency of model metrics on the UI.
-13. Conclude by reiterating: *"This is an AI prototype – official warnings must come from the IMD."*
+4. Upload one satellite image from `data/satellite/`.
+5. Show **Satellite Image Classification** and its confidence.
+6. Show the automatic verified image-to-cyclone identification result.
+7. Show the historical track, LSTM forecast, uncertainty corridor, and risk panel when a verified mapping exists.
+8. With the current repository data, explain that `satellite_cyclone_mapping.csv` is header-only, so the automatic pipeline stops with **"No verified cyclone identity could be determined"**.
+9. Show the transparency of model metrics on the UI.
+10. Conclude by reiterating: *"This is an AI prototype – official warnings must come from the IMD."*
 
 ## Scientific Integrity Notice
 - All displayed metrics are real, trained values derived from our evaluation scripts.
