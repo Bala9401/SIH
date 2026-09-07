@@ -2,350 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Cyclone Early Warning System - Dashboard</title>
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cyclone Intelligence &amp; Early Warning Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-
-    <!-- Disclaimer Banner -->
-    <div class="prototype-alert text-center py-2 fw-bold" style="font-size: 0.9rem;">
-        <i class="fas fa-exclamation-triangle me-2"></i> DISCLAIMER: This is a prototype AI system developed for SIH. Not for actual operational disaster response.
-    </div>
-
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-darker border-bottom border-secondary">
-        <div class="container-fluid px-4">
-            <a class="navbar-brand brand-font d-flex align-items-center" href="/">
-                <i class="fas fa-hurricane text-cyan me-2 fs-3"></i>
-                AI-CEWS
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link active" href="/dashboard">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
-                </ul>
-                <div class="d-flex align-items-center">
-                    <span id="demoBadge" class="badge-demo me-3"><i class="fas fa-flask me-1"></i> DEMO MODE</span>
-                    <span id="sysTime" class="text-muted small font-monospace"><i class="far fa-clock me-1"></i> --:--:--</span>
-                </div>
-            </div>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand"><span class="brand-mark"><i class="fa-solid fa-hurricane"></i></span><span><b>AI CYCLO</b><small>EARLY WARNING</small></span></div>
+        <nav class="side-nav" aria-label="Main navigation">
+            <a class="active" href="#overview"><i class="fa-solid fa-table-cells-large"></i> Overview</a>
+            <a href="#satellite"><i class="fa-solid fa-satellite"></i> Satellite Analysis</a>
+            <a href="#track"><i class="fa-solid fa-route"></i> Track Forecast</a>
+            <a href="#risk"><i class="fa-solid fa-triangle-exclamation"></i> Risk Assessment</a>
+            <a href="#models"><i class="fa-solid fa-chart-line"></i> Model Performance</a>
+            <a href="#data"><i class="fa-solid fa-database"></i> Data &amp; Models</a>
+        </nav>
+        <div class="sidebar-status">
+            <span class="eyebrow">SYSTEM STATUS</span><strong><i class="status-dot"></i><span id="system-status">CHECKING</span></strong>
+            <span class="status-line"><i class="status-dot" id="cnn-dot"></i> CNN MODEL <b id="cnn-status">--</b></span>
+            <span class="status-line"><i class="status-dot" id="lstm-dot"></i> LSTM MODEL <b id="lstm-status">--</b></span>
+            <span class="status-line"><i class="status-dot" id="risk-dot"></i> RISK ENGINE <b id="risk-status">--</b></span>
         </div>
-    </nav>
-
-    <div class="container-fluid py-3 px-4">
-        
-        <!-- System Header -->
-        <div class="system-header mb-4">
-            <h1 class="brand-font mb-2">🌪️ AI CYCLONE EARLY WARNING SYSTEM</h1>
-            <p class="text-muted lead fs-6">AI-Based Identification &bull; Classification &bull; Track Prediction &bull; Risk Assessment</p>
-        </div>
-
-        <!-- KPI Cards Row -->
-        <div class="row mb-4">
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Status</div>
-                    <div class="d-flex align-items-center">
-                        <div id="card-status" class="fs-5 fw-bold text-success">
-                            <i class="fas fa-check-circle me-2"></i>Active
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Cyclone Name</div>
-                    <div id="card-cyclone-name" class="fs-5 fw-bold text-white">N/A</div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Product Confidence</div>
-                    <div class="d-flex align-items-center justify-content-between mb-1">
-                        <span id="card-confidence" class="fs-5 fw-bold text-white">--%</span>
-                    </div>
-                    <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1);">
-                        <div id="confidence-bar" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Wind Speed</div>
-                    <div id="card-wind" class="fs-5 fw-bold text-white">-- km/h</div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Pressure</div>
-                    <div id="card-pressure" class="fs-5 fw-bold text-white">-- hPa</div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-6 mb-3">
-                <div class="glass-card p-3 h-100 d-flex flex-column justify-content-center">
-                    <div class="text-muted small mb-1">Risk Level</div>
-                    <div id="card-risk" class="fs-5 fw-bold text-secondary">
-                        <i id="risk-icon" class="fas fa-shield-halved me-2"></i>Unknown
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <!-- Left Column -->
-            <div class="col-xl-4 col-lg-5 mb-4">
-                
-                <!-- Satellite Image Upload -->
-                <div class="glass-card mb-4">
-                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
-                        <i class="fas fa-satellite me-2 text-cyan"></i> Satellite Analysis
-                    </h5>
-                    
-                    <div class="mb-3">
-                        <div id="dropZone" class="upload-area">
-                            <i class="fas fa-cloud-upload-alt fs-1 text-muted mb-2"></i>
-                            <p class="mb-0">Drag & Drop INSAT-3D Image</p>
-                            <p class="text-muted small">or click to browse</p>
-                            <input type="file" id="fileInput" class="d-none" accept="image/*">
-                        </div>
-                        <div id="imagePreviewContainer" class="d-none mt-3 text-center position-relative">
-                            <img id="imagePreview" src="" alt="Preview" class="img-fluid rounded border border-secondary">
-                            <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" onclick="clearImagePreview()">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button id="btnAnalyzeImg" class="btn btn-gradient w-100 py-2 fw-bold disabled">
-                        <i class="fas fa-microchip me-2"></i> Analyze Image
-                    </button>
-
-                    <!-- Image Analysis Results -->
-                    <div id="imageAnalysisResults" class="mt-3 p-3 rounded bg-dark border border-secondary d-none">
-                        <h6 class="text-info border-bottom border-secondary pb-1 mb-2">CNN Satellite Product Analysis</h6>
-                        <div class="row small">
-                            <div class="col-6 mb-1 text-muted">Detected:</div>
-                            <div class="col-6 mb-1 fw-bold" id="res-cyclone-detected"></div>
-                            
-                            <div class="col-6 mb-1 text-muted">Product class:</div>
-                            <div class="col-6 mb-1 fw-bold text-warning" id="res-prediction"></div>
-                            
-                            <div class="col-6 mb-1 text-muted">CNN class confidence:</div>
-                            <div class="col-6 mb-1 fw-bold" id="res-confidence"></div>
-                            
-                            <div class="col-6 mb-1 text-muted">Risk Score:</div>
-                            <div class="col-6 mb-1 fw-bold text-danger" id="res-risk-score"></div>
-                            
-                            <div class="col-6 text-muted">Risk Level:</div>
-                            <div class="col-6 fw-bold" id="res-risk-level"></div>
-
-                            <div class="col-12 mt-2 text-muted" id="res-track-status">
-                                Select a cyclone below to generate an LSTM track forecast.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Track Prediction Controls -->
-                <div class="glass-card mb-4">
-                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
-                        <i class="fas fa-route me-2 text-primary"></i> Track Prediction (LSTM)
-                    </h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Upload-to-track works automatically only for images listed in the verified mapping file. Otherwise, choose a named historical cyclone for manual exploration.</label>
-                        <select id="cycloneSelect" class="form-select bg-dark text-white border-secondary">
-                            <option value="">-- Choose a named historical cyclone --</option>
-                        </select>
-                    </div>
-                    
-                    <button id="btnPredictTrack" class="btn btn-outline-info w-100 py-2">
-                        <i class="fas fa-play me-2"></i> Load & Predict Track
-                    </button>
-                </div>
-
-                <!-- Model Performance Metrics -->
-                <div class="glass-card">
-                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2 text-muted fs-6">
-                        <i class="fas fa-chart-line me-2"></i> Model Performance Metrics
-                    </h5>
-                    <div class="row g-2 small text-muted">
-                        <div class="col-6">
-                            <div class="p-2 border border-secondary rounded text-center">
-                                <div class="d-block mb-1">Track Lat MAE</div>
-                                <strong class="text-white" id="metric-lat">--</strong>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-2 border border-secondary rounded text-center">
-                                <div class="d-block mb-1">Track Lon MAE</div>
-                                <strong class="text-white" id="metric-lon">--</strong>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-2 border border-secondary rounded text-center">
-                                <div class="d-block mb-1">CNN Accuracy</div>
-                                <strong class="text-white" id="metric-acc">--</strong>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-2 border border-secondary rounded text-center">
-                                <div class="d-block mb-1">CNN F1 Score</div>
-                                <strong class="text-white" id="metric-f1">--</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Middle & Right Columns -->
-            <div class="col-xl-8 col-lg-7">
-                
-                <!-- Map Container -->
-                <div class="glass-card p-2 mb-4 position-relative">
-                    <div id="cyclone-map"></div>
-                    <div class="position-absolute top-0 end-0 m-3 z-3 bg-dark p-2 rounded border border-secondary opacity-75 small">
-                        <i class="fas fa-circle text-danger me-1"></i> Observed
-                        <br>
-                        <i class="fas fa-circle text-warning me-1"></i> Predicted (LSTM)
-                    </div>
-                </div>
-
-                <!-- Early Warning Assessment Panel -->
-                <div class="glass-card mb-4" id="warning-assessment-panel">
-                    <h5 class="card-title mb-3 border-bottom border-secondary pb-2">
-                        <i class="fas fa-triangle-exclamation me-2 text-warning"></i> Early Warning & Risk Assessment
-                    </h5>
-                    
-                    <div class="row">
-                        <div class="col-md-5">
-                            <div id="dynamic-warning-banner" class="warning-panel">
-                                <h4 class="mb-1 d-flex align-items-center">
-                                    <i class="fas fa-shield-halved me-2" id="panel-risk-icon"></i>
-                                    <span id="panel-risk-level">Awaiting Data</span>
-                                </h4>
-                                <div class="fs-2 fw-bold text-white mb-2">Score: <span id="panel-risk-score">--</span>/100</div>
-                                <p class="small text-muted mb-0">Source: <span id="panel-risk-source">N/A</span></p>
-                            </div>
-                        </div>
-                        <div class="col-md-7">
-                            <h6 class="text-white mb-2">Assessment Summary</h6>
-                            <p id="panel-warning-desc" class="small text-muted mb-3">
-                                Upload a satellite image or select a cyclone to generate a risk assessment.
-                            </p>
-                            
-                            <h6 class="text-white mb-2">Recommended Actions</h6>
-                            <ul id="panel-actions-list" class="small text-muted mb-0 ps-3">
-                                <li>Monitor system status.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Data Tables & Charts Tabs -->
-                <div class="glass-card">
-                    <ul class="nav nav-tabs border-secondary mb-3" id="dataTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active bg-transparent text-white" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts-pane" type="button" role="tab">Prediction Charts</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link bg-transparent text-muted" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-pane" type="button" role="tab">Data Table</button>
-                        </li>
-                    </ul>
-                    
-                    <div class="tab-content" id="dataTabsContent">
-                        <!-- Charts Tab -->
-                        <div class="tab-pane fade show active" id="charts-pane" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="p-2 border border-secondary rounded">
-                                        <canvas id="windChart" height="200"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="p-2 border border-secondary rounded">
-                                        <canvas id="pressureChart" height="200"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="p-2 border border-secondary rounded">
-                                        <canvas id="latChart" height="200"></canvas>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="p-2 border border-secondary rounded">
-                                        <canvas id="lonChart" height="200"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Table Tab -->
-                        <div class="tab-pane fade" id="table-pane" role="tabpanel">
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                <table class="table table-sm table-dark-custom">
-                                    <thead>
-                                        <tr>
-                                            <th>Time (h)</th>
-                                            <th>Lat (°N)</th>
-                                            <th>Lon (°E)</th>
-                                            <th>Wind (km/h)</th>
-                                            <th>Pressure (hPa)</th>
-                                            <th>Risk</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="predicted-track-body">
-                                        <tr>
-                                            <td colspan="6" class="text-center text-muted py-4">No prediction data available</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <!-- Toasts injected by JS -->
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/js/dashboard.js"></script>
-    <script>
-        function clearImagePreview() {
-            document.getElementById('imagePreviewContainer').classList.add('d-none');
-            document.getElementById('fileInput').value = '';
-            document.getElementById('btnAnalyzeImg').classList.add('disabled');
-            document.getElementById('dropZone').classList.remove('d-none');
-            document.getElementById('imageAnalysisResults').classList.add('d-none');
-        }
-    </script>
+    </aside>
+    <main class="main-content" id="overview">
+        <header class="topbar">
+            <button class="icon-button" id="sidebar-toggle" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
+            <div><span class="eyebrow">AI CYCLONE EARLY WARNING SYSTEM</span><p>Satellite Intelligence <b>/</b> CNN Classification <b>/</b> LSTM Track Prediction <b>/</b> Risk Assessment</p></div>
+            <div class="topbar-meta"><span class="online"><i class="status-dot ready"></i> SYSTEM ONLINE</span><span>LAST ANALYSIS <b id="last-analysis">--</b></span><button class="icon-button" aria-label="Settings"><i class="fa-solid fa-sliders"></i></button></div>
+        </header>
+        <section class="page-heading"><div><span class="eyebrow accent">LIVE CYCLONE INTELLIGENCE</span><h1>Satellite-to-warning analysis center</h1><p>Upload a satellite image to initiate an evidence-based analysis.</p></div><div class="disclaimer"><i class="fa-solid fa-circle-info"></i> AI-assisted decision support. Follow official meteorological warnings.</div></section>
+        <section class="pipeline" aria-label="Analysis pipeline">
+            <div class="pipeline-step active" data-stage="ingest"><span>01</span><i class="fa-solid fa-cloud-arrow-up"></i><b>IMAGE INGESTION</b><small>WAITING</small></div>
+            <div class="pipeline-step" data-stage="cnn"><span>02</span><i class="fa-solid fa-brain"></i><b>CNN ANALYSIS</b><small>WAITING</small></div>
+            <div class="pipeline-step" data-stage="map"><span>03</span><i class="fa-solid fa-link"></i><b>TRACK LINK</b><small>WAITING</small></div>
+            <div class="pipeline-step" data-stage="lstm"><span>04</span><i class="fa-solid fa-route"></i><b>LSTM FORECAST</b><small>WAITING</small></div>
+            <div class="pipeline-step" data-stage="risk"><span>05</span><i class="fa-solid fa-shield-halved"></i><b>RISK ASSESSMENT</b><small>WAITING</small></div>
+            <div class="pipeline-step" data-stage="warning"><span>06</span><i class="fa-solid fa-bullhorn"></i><b>WARNING</b><small>WAITING</small></div>
+        </section>
+        <section class="workspace-grid" id="satellite">
+            <div class="panel upload-panel"><div class="panel-heading"><div><span class="eyebrow">01 / SATELLITE ANALYSIS</span><h2>Upload satellite imagery</h2></div><span class="live-chip">INPUT</span></div><div class="drop-zone" id="dropZone"><i class="fa-solid fa-satellite-dish"></i><h3>Drop an image here</h3><p>or browse from your device</p><span>JPG / JPEG / PNG / TIFF / WEBP &nbsp; | &nbsp; MAX 16 MB</span><input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.tif,.tiff,.webp,image/*" hidden></div><div class="preview-wrap hidden" id="preview-wrap"><img id="imagePreview" alt="Uploaded satellite preview"><div><b id="file-name">--</b><small id="file-meta">--</small></div><button class="icon-button danger" id="remove-file" aria-label="Remove image"><i class="fa-solid fa-xmark"></i></button></div><button class="primary-button" id="analyze-button" disabled><i class="fa-solid fa-microchip"></i> ANALYZE SATELLITE IMAGE</button><div class="analysis-note"><i class="fa-solid fa-circle-info"></i> The CNN model classifies the satellite product. A track is shown only when a verified image-to-storm mapping exists.</div></div>
+            <div class="panel status-panel"><div class="panel-heading"><div><span class="eyebrow">ANALYSIS STATE</span><h2 id="analysis-title">No active analysis</h2></div><span class="state-chip neutral" id="analysis-state">READY</span></div><div class="kpi-grid"><div class="kpi"><small>CYCLONE STATUS</small><strong id="kpi-cyclone">N/A</strong><span id="kpi-cyclone-detail">No verified storm link</span></div><div class="kpi"><small>CNN CONFIDENCE</small><strong id="kpi-confidence">N/A</strong><span id="kpi-class">Classification unavailable</span></div><div class="kpi"><small>WIND SPEED</small><strong id="kpi-wind">N/A</strong><span>Verified observation</span></div><div class="kpi"><small>PRESSURE</small><strong id="kpi-pressure">N/A</strong><span>Verified observation</span></div><div class="kpi"><small>RISK</small><strong id="kpi-risk">N/A</strong><span id="kpi-risk-score">No assessment</span></div></div><div class="state-summary" id="state-summary"><p><b>CNN ANALYSIS</b><span id="summary-cnn">Ready when an image is uploaded.</span></p><p><b>CYCLONE IDENTIFICATION</b><span id="summary-identification">No verified image-to-cyclone mapping.</span></p><p><b>LSTM TRACK FORECAST</b><span id="summary-track">Requires verified cyclone identity and historical sequence.</span></p><p><b>RISK ASSESSMENT</b><span id="summary-risk">Requires verified current cyclone observations.</span></p></div><div class="empty-state" id="empty-state"><i class="fa-solid fa-radar"></i><b>NO ACTIVE ANALYSIS</b><span>Upload a satellite image to begin cyclone intelligence analysis.</span></div></div>
+        </section>
+        <section class="result-grid">
+            <div class="panel" id="satellite-result"><div class="panel-heading"><div><span class="eyebrow">CNN MODEL OUTPUT</span><h2>Satellite classification</h2></div><span class="model-tag">CNN</span></div><div class="image-result"><div class="result-image"><img id="result-image" alt="Analyzed satellite image"></div><div class="classification"><span class="eyebrow">PREDICTION</span><strong id="cnn-prediction">UNAVAILABLE</strong><div class="confidence-row"><span>CONFIDENCE</span><b id="cnn-confidence">N/A</b></div><div class="probability-list" id="probability-list"></div><div class="interpretation"><span class="eyebrow">AI INTERPRETATION</span><p id="ai-interpretation">Awaiting an uploaded image.</p></div></div></div></div>
+            <div class="panel" id="data"><div class="panel-heading"><div><span class="eyebrow">DATA QUALITY</span><h2>Evidence status</h2></div><span class="model-tag">LIVE</span></div><div class="quality-list"><div><span><i class="fa-solid fa-image"></i> Satellite image</span><b id="quality-image">WAITING</b></div><div><span><i class="fa-solid fa-brain"></i> CNN model</span><b id="quality-cnn">CHECKING</b></div><div><span><i class="fa-solid fa-database"></i> Track dataset</span><b id="quality-track">CHECKING</b></div><div><span><i class="fa-solid fa-route"></i> LSTM model</span><b id="quality-lstm">CHECKING</b></div><div><span><i class="fa-solid fa-shield"></i> Risk engine</span><b id="quality-risk">CHECKING</b></div></div><div class="provenance"><span class="eyebrow">DATA PROVENANCE</span><p>CNN source <b id="prov-cnn">N/A</b></p><p>Satellite mapping source <b id="prov-mapping">N/A</b></p><p>IBTrACS source <b id="prov-ibtracs">N/A</b></p><p>Mapping confidence <b id="prov-confidence">N/A</b></p><p>Forecast basis <b id="prov-forecast">N/A</b></p></div><details class="advanced"><summary>Advanced / manual analysis</summary><p>Developer / historical analysis mode. This path is separate from uploaded-image analysis.</p><select id="cycloneSelect"><option value="">Select a historical cyclone</option></select><button class="secondary-button" id="manual-track">RUN MANUAL FORECAST</button></details></div>
+        </section>
+        <section class="panel track-panel" id="track"><div class="panel-heading"><div><span class="eyebrow">02 / TRACK FORECAST</span><h2>LSTM track forecast</h2><p>Predicted movement over the next 48 hours, only from a verified observation sequence.</p></div><span class="model-tag" id="track-method">UNAVAILABLE</span></div><div class="track-empty" id="track-empty"><i class="fa-solid fa-route"></i><b>TRACK PREDICTION UNAVAILABLE</b><span id="track-reason">A verified image-to-cyclone mapping is required.</span></div><div class="track-content hidden" id="track-content"><div id="cyclone-map"></div><div class="map-legend"><span><i class="observed"></i> OBSERVED</span><span><i class="current"></i> CURRENT</span><span><i class="predicted"></i> PREDICTED</span><span><i class="uncertainty"></i> UNCERTAINTY</span></div><div class="forecast-cards" id="forecast-cards"></div></div></section>
+        <section class="charts-grid hidden" id="charts-section"><div class="panel chart-panel"><span class="eyebrow">FORECAST SIGNAL</span><h2>Wind speed</h2><canvas id="windChart"></canvas></div><div class="panel chart-panel"><span class="eyebrow">FORECAST SIGNAL</span><h2>Pressure</h2><canvas id="pressureChart"></canvas></div><div class="panel chart-panel wide"><span class="eyebrow">TRACK GEOMETRY</span><h2>Latitude / longitude</h2><canvas id="trackChart"></canvas></div></section>
+        <section class="risk-grid" id="risk"><div class="panel risk-panel"><div class="panel-heading"><div><span class="eyebrow">03 / RISK ASSESSMENT</span><h2>AI risk intelligence</h2></div><span class="state-chip neutral" id="risk-chip">UNAVAILABLE</span></div><div class="risk-score"><div class="gauge"><span><b id="risk-score">N/A</b><small>/ 100</small></span></div><div><span class="eyebrow">CURRENT WARNING</span><strong id="risk-level">NO ACTIVE WARNING</strong><p id="risk-reason">Risk requires a verified cyclone observation and meteorological track data.</p></div></div><div class="factor-list" id="factor-list"><div><span>Wind speed</span><b>N/A</b></div><div><span>Pressure</span><b>N/A</b></div><div><span>Track trend</span><b>N/A</b></div><div><span>Satellite context</span><b>N/A</b></div></div></div><div class="panel warning-panel"><span class="eyebrow">EARLY WARNING</span><h2 id="warning-level">AWAITING ANALYSIS</h2><p id="warning-copy">Upload an image to generate a transparent warning assessment.</p><h3>Recommended actions</h3><ul id="actions"><li>Monitor official meteorological updates.</li><li>Follow local authority guidance.</li></ul><small class="warning-disclaimer">This system does not replace official meteorological warnings.</small></div></section>
+        <section class="panel" id="models"><div class="panel-heading"><div><span class="eyebrow">MODEL PERFORMANCE</span><h2>Evaluation artifacts</h2></div><span class="model-tag">API SOURCED</span></div><div class="metrics-grid"><div><h3>CNN / PRODUCT CLASSIFIER</h3><p>Accuracy <b id="metric-accuracy">N/A</b></p><p>Precision <b id="metric-precision">N/A</b></p><p>Recall <b id="metric-recall">N/A</b></p><p>F1 score <b id="metric-f1">N/A</b></p></div><div><h3>LSTM / TRACK FORECAST</h3><p>Latitude MAE <b id="metric-lat">N/A</b></p><p>Longitude MAE <b id="metric-lon">N/A</b></p><p>Wind MAE <b id="metric-wind">N/A</b></p><p>Pressure MAE <b id="metric-pressure">N/A</b></p></div><div><h3>RECENT ANALYSIS</h3><div id="history-list" class="history-list"><span>No completed analyses.</span></div></div></div></section>
+        <footer>Academic research prototype. Use official agencies such as IMD for operational cyclone warnings.</footer>
+    </main>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/dashboard.js"></script>
 </body>
 </html>

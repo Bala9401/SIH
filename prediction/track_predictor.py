@@ -68,7 +68,7 @@ class CycloneTrackPredictor:
         # offers the user a clearly labelled manual storm selection instead.
         return {
             "matched": False,
-            "reason": "No verified satellite-image-to-cyclone mapping is available. Select the cyclone manually to run the LSTM forecast."
+            "reason": "No verified image-to-cyclone mapping. LSTM track forecast requires a verified cyclone identity and historical sequence; use Advanced / Manual Analysis for a historical storm."
         }
 
     def get_available_cyclones(self):
@@ -109,7 +109,10 @@ class CycloneTrackPredictor:
         except (OSError, json.JSONDecodeError):
             return None
 
-    def predict_track(self, recent_track, steps=16):
+    def predict_track(self, recent_track, steps=16, allow_baseline=True):
+        if not allow_baseline and (self.demo_mode or not recent_track or len(recent_track) < self.sequence_length):
+            return []
+
         if self.demo_mode or not recent_track or len(recent_track) < self.sequence_length:
             # A missing model must not produce a plausible-looking fabricated
             # storm path.  Persistence is an explicit, reproducible baseline.
@@ -192,6 +195,8 @@ class CycloneTrackPredictor:
             return predictions
         except Exception as e:
             print(f"Error predicting track: {e}")
+            if not allow_baseline:
+                return []
             demo_pred = []
             last_point = recent_track[-1]
             current_lat = last_point.get('lat', 15.0)

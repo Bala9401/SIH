@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify, send_from_directory, session
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -176,6 +177,111 @@ def uploaded_file(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 404
 
+@app.route('/api/analyze', methods=['POST'])
+def analyze_uploaded_image():
+    """Run image analysis and only forecast when a verified track is available."""
+    upload = request.files.get('file') or request.files.get('image')
+    if upload is None or not upload.filename:
+        return jsonify({'success': False, 'error': 'Upload a satellite image to begin analysis.'}), 400
+
+    original_filename = secure_filename(upload.filename)
+    extension = os.path.splitext(original_filename)[1].lower()
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        return jsonify({'success': False, 'error': 'Unsupported image format.'}), 415
+
+    try:
+        image = Image.open(upload)
+        image.verify()
+        upload.seek(0)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Uploaded file is not a readable image.'}), 400
+
+    filename = f"{uuid.uuid4().hex}_{original_filename}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    upload.save(filepath)
+
+    try:
+        with Image.open(filepath) as saved_image:
+            width, height = saved_image.size
+        image_result = image_predictor.predict(filepath, original_filename) if image_predictor else {
+            'prediction': 'Unavailable', 'error': 'CNN analysis unavailable.'
+        }
+        image_result['image_url'] = f'/uploads/{filename}'
+        image_result['confidence_percent'] = round(image_result.get('confidence', 0) * 100, 1)
+        if image_result.get('prediction') in ('Error', 'Unavailable'):
+            return jsonify({'success': False, 'error': image_result.get('error', 'CNN analysis unavailable.'),
+                            'image': {'url': image_result['image_url'], 'filename': original_filename,
+                                      'width': width, 'height': height}}), 503
+
+        identification = track_predictor.identify_cyclone(image_result) if track_predictor else {
+            'matched': False, 'reason': 'Track predictor is unavailable.'
+        }
+        historical = []
+        predicted = []
+        risk = None
+        track_available = False
+        track_reason = identification.get('reason')
+
+        if identification.get('matched') and track_predictor:
+            historical = track_predictor.get_historical_track(identification['cyclone_id'])
+            sequence_ready = len(historical) >= track_predictor.sequence_length and all(
+                point.get(field) is not None
+                for point in historical[-track_predictor.sequence_length:]
+                for field in ('lat', 'lon', 'wind', 'pressure')
+            )
+            if sequence_ready and not track_predictor.demo_mode:
+                predicted = track_predictor.predict_track(historical, allow_baseline=False)
+                track_available = bool(predicted)
+                track_reason = None if track_available else 'LSTM forecast could not be generated.'
+            else:
+                track_reason = 'At least six complete real observations and a loaded LSTM model are required.'
+
+            if historical and risk_assessor:
+                current = historical[-1]
+                if all(current.get(field) is not None for field in ('lat', 'lon', 'wind')):
+                    risk = risk_assessor.assess_risk(
+                        wind_speed=current.get('wind'), predicted_track=predicted,
+                        current_position=current, pressure=current.get('pressure'),
+                        satellite_analysis=image_result)
+
+        session['latest_image_analysis'] = image_result
+        session['latest_track_prediction'] = {'historical': historical, 'predicted': predicted}
+        if identification.get('matched'):
+            session['identified_cyclone_id'] = identification.get('cyclone_id')
+            session['identified_cyclone_name'] = identification.get('cyclone_name')
+
+        current = historical[-1] if historical else {}
+        mapping_source = os.path.relpath(track_predictor.cyclone_matcher.mapping_path, config.BASE_DIR) if track_predictor else None
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'image': {'url': image_result['image_url'], 'filename': original_filename,
+                      'width': width, 'height': height, 'size_bytes': os.path.getsize(filepath)},
+            'cnn': {'prediction': image_result.get('prediction'), 'class_name': image_result.get('class_name'),
+                    'confidence': image_result.get('confidence'), 'probabilities': image_result.get('all_probabilities', []),
+                    'classes': image_predictor.class_names if image_predictor else [], 'task': image_result.get('task')},
+            'cyclone': {'detected': identification.get('matched', False), 'name': identification.get('cyclone_name'),
+                        'id': identification.get('cyclone_id'), 'latitude': current.get('lat'),
+                        'longitude': current.get('lon'), 'wind': current.get('wind'), 'pressure': current.get('pressure'),
+                        'observation_time': current.get('time'), 'match_confidence': identification.get('match_confidence'),
+                        'reason': identification.get('reason')},
+            'track': {'available': track_available, 'historical': historical, 'predicted': predicted,
+                      'forecast_hours': 48 if track_available else 0,
+                      'uncertainty': [p.get('uncertainty_radius_km') for p in predicted],
+                      'method': 'LSTM MODEL' if track_available else None, 'reason': track_reason},
+            'provenance': {
+                'cnn_source': 'models/cyclone_cnn.keras; models/metadata.json',
+                'satellite_mapping_source': mapping_source,
+                'ibtracs_source': 'data/processed/ibtracs_ni_processed.csv' if identification.get('matched') else None,
+                'mapping_confidence': identification.get('match_confidence'),
+                'forecast_basis': 'LSTM MODEL using verified historical observations' if track_available else 'N/A for uploaded image',
+            },
+            'risk': risk if risk else {'available': False, 'risk_level': 'UNAVAILABLE', 'risk_score': None,
+                                       'reason': 'Risk assessment requires a verified cyclone observation.'}
+        })
+    except Exception as error:
+        return jsonify({'success': False, 'error': str(error)}), 500
+
 @app.route('/predict/track', methods=['POST'])
 def predict_track():
     try:
@@ -316,6 +422,7 @@ def get_demo_status():
 @app.route('/api/status', methods=['GET'])
 def get_status():
     """Return the frontend-compatible aggregate runtime status."""
+    dataset_available = os.path.exists(os.path.join(config.DATA_DIR, 'processed', 'cyclone_tracks.json'))
     return jsonify({
         'demo_mode': any((
             image_predictor is None or image_predictor.demo_mode,
@@ -325,6 +432,14 @@ def get_status():
         'models': {
             'cnn': bool(image_predictor and not image_predictor.demo_mode),
             'lstm': bool(track_predictor and not track_predictor.demo_mode),
+            'risk_engine': risk_assessor is not None,
+        },
+        'dataset': dataset_available,
+        'components': {
+            'cnn': 'READY' if image_predictor and not image_predictor.demo_mode else 'UNAVAILABLE',
+            'lstm': 'READY' if track_predictor and not track_predictor.demo_mode else 'UNAVAILABLE',
+            'risk_engine': 'READY' if risk_assessor else 'UNAVAILABLE',
+            'track_dataset': 'AVAILABLE' if dataset_available else 'UNAVAILABLE',
         }
     })
 

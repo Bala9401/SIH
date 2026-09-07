@@ -56,6 +56,7 @@ class CycloneRiskAssessor:
         try:
             if wind_speed is None or not current_position:
                 return {
+                    "available": False,
                     "risk_level": "INSUFFICIENT DATA",
                     "risk_score": None,
                     "reason": "Current wind and cyclone position are required for meteorological risk calculation.",
@@ -126,6 +127,7 @@ class CycloneRiskAssessor:
                 recommended_actions = ["Stay informed through official channels"]
                 
             return {
+                "available": True,
                 "risk_level": risk_level,
                 "risk_score": risk_score,
                 "reason": reason,
@@ -159,6 +161,7 @@ class CycloneRiskAssessor:
         except Exception as e:
             print(f"Error assessing risk: {e}")
             return {
+                "available": False,
                 "risk_level": "INSUFFICIENT DATA",
                 "risk_score": None,
                 "reason": f"Error calculating risk: {str(e)}",
